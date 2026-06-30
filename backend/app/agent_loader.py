@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,7 @@ from .config import PACKAGES_DIR
 REQUIRED_MANIFEST_FIELDS = ["id", "name", "version", "description", "runtime"]
 REQUIRED_PACKAGE_FILES = ["manifest.yaml", "prompt.md", "persona.md"]
 SUPPORTED_RUNTIME_TYPES = {"openai-compatible"}
+PACKAGE_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 @dataclass
@@ -30,6 +32,7 @@ class AgentPackage:
     author: str
     tags: list[str]
     permissions: list[str]
+    skills: list[dict[str, Any]]
     runtime: dict[str, Any]
     package_path: str
     files: list[str]
@@ -69,6 +72,11 @@ def _list_package_files(agent_dir: Path) -> list[str]:
     return sorted(path.relative_to(agent_dir).as_posix() for path in agent_dir.rglob("*") if path.is_file())
 
 
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
 def validate_agent_package(agent_dir: Path, manifest: dict[str, Any] | None = None) -> PackageValidation:
     errors: list[str] = []
     warnings: list[str] = []
@@ -85,13 +93,14 @@ def validate_agent_package(agent_dir: Path, manifest: dict[str, Any] | None = No
     agent_id = manifest.get("id")
     if agent_id and not isinstance(agent_id, str):
         errors.append("manifest.id must be a string")
-    elif isinstance(agent_id, str) and not agent_id.replace("-", "").replace("_", "").isalnum():
+    elif isinstance(agent_id, str) and not PACKAGE_ID_PATTERN.fullmatch(agent_id):
         errors.append("manifest.id may contain only letters, numbers, hyphen, and underscore")
 
     if "tags" in manifest and not isinstance(manifest.get("tags"), list):
         errors.append("manifest.tags must be a list")
-    if "permissions" in manifest and not isinstance(manifest.get("permissions"), list):
-        errors.append("manifest.permissions must be a list")
+    for list_field in ["tags", "permissions", "skills"]:
+        if list_field in manifest and not isinstance(manifest.get(list_field), list):
+            errors.append(f"manifest.{list_field} must be a list")
 
     runtime = manifest.get("runtime")
     if runtime is not None and not isinstance(runtime, dict):
@@ -124,6 +133,7 @@ def load_agent_package(agent_dir: Path) -> AgentPackage | None:
         author=manifest.get("author", ""),
         tags=manifest.get("tags", []) or [],
         permissions=manifest.get("permissions", []) or [],
+        skills=manifest.get("skills", []) or [],
         runtime=manifest.get("runtime", {}) or {},
         package_path=str(agent_dir),
         files=_list_package_files(agent_dir),
@@ -154,6 +164,52 @@ def get_agent(agent_id: str) -> AgentPackage | None:
     return None
 
 
+def create_agent_package(
+    agent_id: str,
+    name: str,
+    description: str,
+    author: str,
+    persona: str,
+    prompt: str,
+    tags: list[str] | None = None,
+    permissions: list[str] | None = None,
+    skills: list[dict[str, Any]] | None = None,
+    runtime: dict[str, Any] | None = None,
+    mcp: dict[str, Any] | None = None,
+) -> AgentPackage:
+    if not PACKAGE_ID_PATTERN.fullmatch(agent_id):
+        raise ValueError("Package id may contain only letters, numbers, hyphen, and underscore")
+
+    agent_dir = PACKAGES_DIR / f"{agent_id}.agent"
+    if agent_dir.exists():
+        raise ValueError(f"Agent package already exists: {agent_id}")
+
+    manifest = {
+        "id": agent_id,
+        "name": name,
+        "version": "0.1.0",
+        "description": description,
+        "author": author,
+        "tags": tags or [],
+        "permissions": permissions or [],
+        "skills": skills or [],
+        "runtime": runtime or {"type": "openai-compatible"},
+    }
+
+    agent_dir.mkdir(parents=True, exist_ok=False)
+    _write_text(agent_dir / "manifest.yaml", yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False))
+    _write_text(agent_dir / "persona.md", persona)
+    _write_text(agent_dir / "prompt.md", prompt)
+    _write_text(agent_dir / "mcp.json", json.dumps(mcp or {"servers": []}, ensure_ascii=False, indent=2))
+
+    package = load_agent_package(agent_dir)
+    if not package:
+        raise ValueError(f"Failed to load created agent package: {agent_id}")
+    if not package.validation.valid:
+        raise ValueError("; ".join(package.validation.errors))
+    return package
+
+
 def package_summary(agent: AgentPackage) -> dict[str, Any]:
     return {
         "id": agent.id,
@@ -163,6 +219,7 @@ def package_summary(agent: AgentPackage) -> dict[str, Any]:
         "author": agent.author,
         "tags": agent.tags,
         "permissions": agent.permissions,
+        "skills": agent.skills,
         "runtime": agent.runtime,
         "valid": agent.validation.valid,
         "validation": agent.validation.__dict__,

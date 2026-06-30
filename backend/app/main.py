@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .agent_loader import get_agent, list_agents, package_detail, package_summary
+from .agent_loader import create_agent_package, get_agent, list_agents, package_detail, package_summary
 from .experience_manager import (
     create_experience_from_session,
     delete_experience,
@@ -16,9 +16,10 @@ from .experience_manager import (
     list_experiences,
     update_experience_enabled,
 )
-from .instance_manager import ensure_default_instances, install_package, list_instances
+from .instance_manager import ensure_default_instances, install_package, list_instances, update_instance
 from .openai_api import router as openai_router
 from .session_manager import create_session, get_session, list_sessions
+from .skill_manager import install_skill_from_github
 
 
 @asynccontextmanager
@@ -50,8 +51,33 @@ class InstallPackageRequest(BaseModel):
     config: dict = Field(default_factory=dict)
 
 
+class CreatePackageRequest(BaseModel):
+    id: str
+    name: str
+    description: str = ""
+    author: str = ""
+    persona: str
+    prompt: str
+    tags: list[str] = Field(default_factory=list)
+    permissions: list[str] = Field(default_factory=list)
+    skills: list[dict] = Field(default_factory=list)
+    runtime: dict = Field(default_factory=lambda: {"type": "openai-compatible"})
+    mcp: dict = Field(default_factory=lambda: {"servers": []})
+
+
 class CreateSessionRequest(BaseModel):
     title: str | None = None
+
+
+class UpdateInstanceRequest(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    config: dict | None = None
+    mcp_bindings: dict | None = None
+
+
+class InstallSkillRequest(BaseModel):
+    url: str
 
 
 class UpdateExperienceRequest(BaseModel):
@@ -71,6 +97,27 @@ def health() -> dict:
 @app.get("/packages")
 def packages() -> list[dict]:
     return [package_summary(agent) for agent in list_agents()]
+
+
+@app.post("/packages")
+def create_package(req: CreatePackageRequest) -> dict:
+    try:
+        agent = create_agent_package(
+            agent_id=req.id,
+            name=req.name,
+            description=req.description,
+            author=req.author,
+            persona=req.persona,
+            prompt=req.prompt,
+            tags=req.tags,
+            permissions=req.permissions,
+            skills=req.skills,
+            runtime=req.runtime,
+            mcp=req.mcp,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return package_detail(agent)
 
 
 @app.get("/packages/{package_id}")
@@ -100,6 +147,32 @@ def create_instance(req: InstallPackageRequest) -> dict:
 @app.get("/instances")
 def instances() -> list[dict]:
     return [instance.__dict__ for instance in list_instances()]
+
+
+@app.patch("/instances/{instance_id}")
+def patch_instance(instance_id: str, req: UpdateInstanceRequest) -> dict:
+    try:
+        instance = update_instance(
+            instance_id=instance_id,
+            name=req.name,
+            description=req.description,
+            config=req.config,
+            mcp_bindings=req.mcp_bindings,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return instance.__dict__
+
+
+@app.post("/instances/{instance_id}/skills")
+def install_skill(instance_id: str, req: InstallSkillRequest) -> dict:
+    try:
+        instance = install_skill_from_github(instance_id=instance_id, url=req.url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Failed to install skill: {exc}") from exc
+    return instance.__dict__
 
 
 @app.post("/instances/{instance_id}/sessions")

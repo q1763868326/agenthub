@@ -66,6 +66,34 @@ def get_instance(instance_id: str) -> AgentInstance | None:
     return None
 
 
+def update_instance(
+    instance_id: str,
+    name: str | None = None,
+    description: str | None = None,
+    config: dict[str, Any] | None = None,
+    mcp_bindings: dict[str, Any] | None = None,
+    installed_skills: list[dict[str, Any]] | None = None,
+) -> AgentInstance:
+    items = _load_instances()
+    now = int(time.time())
+    for item in items:
+        if item["id"] == instance_id:
+            if name is not None:
+                item["name"] = name
+            if description is not None:
+                item["description"] = description
+            if config is not None:
+                item["config"] = config
+            if mcp_bindings is not None:
+                item["mcp_bindings"] = mcp_bindings
+            if installed_skills is not None:
+                item["installed_skills"] = installed_skills
+            item["updated_at"] = now
+            _save_instances(items)
+            return _from_dict(item)
+    raise ValueError(f"Agent instance not found: {instance_id}")
+
+
 def install_package(package_id: str, name: str | None = None, config: dict[str, Any] | None = None) -> AgentInstance:
     package = get_agent(package_id)
     if not package:

@@ -80,6 +80,21 @@
       }
       button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
       button.danger { color: var(--danger); }
+      label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+      input, textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px;
+        color: var(--text);
+        font: inherit;
+      }
+      textarea {
+        min-height: 88px;
+        resize: vertical;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+      }
       pre {
         overflow: auto;
         margin: 0;
@@ -107,6 +122,44 @@
     </header>
     <main>
       <div class="stack">
+        <section>
+          <h2>创建数字人</h2>
+          <div class="stack">
+            <label>
+              Package ID
+              <input id="new-package-id" placeholder="my-digital-human" />
+            </label>
+            <label>
+              名称
+              <input id="new-package-name" placeholder="我的数字人" />
+            </label>
+            <label>
+              作者
+              <input id="new-package-author" placeholder="your-name" />
+            </label>
+            <label>
+              标签
+              <input id="new-package-tags" placeholder="java, backend, product" />
+            </label>
+            <label>
+              Skills JSON
+              <textarea id="new-package-skills" placeholder='[{"id":"code-review","name":"代码 Review"}]'>[]</textarea>
+            </label>
+            <label>
+              MCP JSON
+              <textarea id="new-package-mcp" placeholder='{"servers": []}'>{"servers": []}</textarea>
+            </label>
+            <label>
+              Persona
+              <textarea id="new-package-persona" placeholder="描述这个数字人的身份、性格和专业背景"></textarea>
+            </label>
+            <label>
+              Prompt
+              <textarea id="new-package-prompt" placeholder="描述它的回答原则、工作方式和约束"></textarea>
+            </label>
+            <button class="primary" onclick="createPackage()">创建 Package</button>
+          </div>
+        </section>
         <section>
           <h2>Packages</h2>
           <div id="packages" class="stack"></div>
@@ -155,6 +208,47 @@
 
       function json(data) {
         return `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+      }
+
+      function instanceForm(instance) {
+        return `
+          <div class="stack">
+            <label>
+              名称
+              <input id="instance-name" value="${escapeHtml(instance.name || "")}" />
+            </label>
+            <label>
+              描述
+              <textarea id="instance-description">${escapeHtml(instance.description || "")}</textarea>
+            </label>
+            <label>
+              Config JSON
+              <textarea id="instance-config">${escapeHtml(JSON.stringify(instance.config || {}, null, 2))}</textarea>
+            </label>
+            <label>
+              MCP Bindings JSON
+              <textarea id="instance-mcp">${escapeHtml(JSON.stringify(instance.mcp_bindings || {}, null, 2))}</textarea>
+            </label>
+            <label>
+              GitHub Skill URL
+              <input id="skill-url" placeholder="https://github.com/owner/skill-repo" />
+            </label>
+            <div class="row">
+              <span class="muted">${escapeHtml(instance.id)} · ${escapeHtml(instance.package_id)}</span>
+              <span>
+                <button onclick="installSkill('${instance.id}')">安装 Skill</button>
+                <button class="primary" onclick="saveInstance('${instance.id}')">保存配置</button>
+              </span>
+            </div>
+            <div>
+              <h3>Installed Skills</h3>
+              ${(instance.installed_skills || []).map((skill) => `
+                <p class="muted">${escapeHtml(skill.name || skill.id)} · ${escapeHtml(skill.source || "")}</p>
+              `).join("") || '<p class="muted">暂无 Skill</p>'}
+            </div>
+            ${json(instance)}
+          </div>
+        `;
       }
 
       async function load() {
@@ -208,16 +302,113 @@
         await load();
       }
 
+      async function createPackage() {
+        const id = document.querySelector("#new-package-id").value.trim();
+        const name = document.querySelector("#new-package-name").value.trim();
+        const author = document.querySelector("#new-package-author").value.trim();
+        const tags = document.querySelector("#new-package-tags").value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        const persona = document.querySelector("#new-package-persona").value.trim();
+        const prompt = document.querySelector("#new-package-prompt").value.trim();
+        let skills;
+        let mcp;
+
+        if (!id || !name || !persona || !prompt) {
+          alert("Package ID、名称、Persona 和 Prompt 必填");
+          return;
+        }
+        try {
+          skills = JSON.parse(document.querySelector("#new-package-skills").value || "[]");
+          mcp = JSON.parse(document.querySelector("#new-package-mcp").value || '{"servers": []}');
+          if (!Array.isArray(skills)) throw new Error("Skills JSON 必须是数组");
+        } catch (error) {
+          alert(`Skills/MCP JSON 格式错误：${error.message}`);
+          return;
+        }
+
+        const created = await api("/packages", {
+          method: "POST",
+          body: JSON.stringify({
+            id,
+            name,
+            author,
+            tags,
+            description: `${name} 数字人`,
+            persona,
+            prompt,
+            permissions: [],
+            skills,
+            runtime: { type: "openai-compatible" },
+            mcp,
+          }),
+        });
+
+        document.querySelector("#detail").innerHTML = json(created);
+        document.querySelector("#new-package-id").value = "";
+        document.querySelector("#new-package-name").value = "";
+        document.querySelector("#new-package-author").value = "";
+        document.querySelector("#new-package-tags").value = "";
+        document.querySelector("#new-package-skills").value = "[]";
+        document.querySelector("#new-package-mcp").value = '{"servers": []}';
+        document.querySelector("#new-package-persona").value = "";
+        document.querySelector("#new-package-prompt").value = "";
+        await load();
+      }
+
       async function selectInstance(id) {
         state.selectedInstance = state.instances.find((item) => item.id === id) || { id };
         renderInstances();
-        document.querySelector("#detail").innerHTML = json(state.selectedInstance);
+        document.querySelector("#detail").innerHTML = instanceForm(state.selectedInstance);
         const [sessions, experiences] = await Promise.all([
           api(`/instances/${id}/sessions`),
           api(`/instances/${id}/experiences`),
         ]);
         renderSessions(sessions);
         renderExperiences(experiences);
+      }
+
+      async function saveInstance(id) {
+        let config;
+        let mcpBindings;
+        try {
+          config = JSON.parse(document.querySelector("#instance-config").value || "{}");
+          mcpBindings = JSON.parse(document.querySelector("#instance-mcp").value || "{}");
+        } catch (error) {
+          alert(`JSON 格式错误：${error.message}`);
+          return;
+        }
+
+        const updated = await api(`/instances/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: document.querySelector("#instance-name").value,
+            description: document.querySelector("#instance-description").value,
+            config,
+            mcp_bindings: mcpBindings,
+          }),
+        });
+        state.instances = state.instances.map((item) => (item.id === id ? updated : item));
+        state.selectedInstance = updated;
+        renderInstances();
+        document.querySelector("#detail").innerHTML = instanceForm(updated);
+      }
+
+      async function installSkill(id) {
+        const url = document.querySelector("#skill-url").value.trim();
+        if (!url) {
+          alert("请输入 GitHub Skill URL");
+          return;
+        }
+        const updated = await api(`/instances/${id}/skills`, {
+          method: "POST",
+          body: JSON.stringify({ url }),
+        });
+        state.instances = state.instances.map((item) => (item.id === id ? updated : item));
+        state.selectedInstance = updated;
+        renderInstances();
+        document.querySelector("#detail").innerHTML = instanceForm(updated);
       }
 
       function renderSessions(sessions) {

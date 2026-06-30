@@ -344,8 +344,10 @@ runtime:
 
 - Package Registry：扫描 `packages/*.agent`
 - Package 校验：检查 manifest 必填字段、runtime、权限类型和必需文件
+- Package 创建：`POST /packages`，支持 Persona、Prompt、Skills 声明和 MCP 声明
 - Package 安装：`POST /instances`
-- Agent Instance：`GET /instances`
+- Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`
+- Skill 安装：`POST /instances/{instance_id}/skills`，支持从 GitHub 仓库下载到实例
 - Session：`POST /instances/{instance_id}/sessions`
 - Session 总结：`POST /sessions/{session_id}/summarize`
 - Experience：`GET /instances/{instance_id}/experiences`
@@ -366,6 +368,24 @@ curl -X PATCH http://localhost:8787/experiences/{experience_id} \
 curl -X DELETE http://localhost:8787/experiences/{experience_id}
 ```
 
+Instance 可以独立编辑名称、描述、配置和 MCP 绑定：
+
+```bash
+curl -X PATCH http://localhost:8787/instances/my-zjf-digital-human \
+  -H "Content-Type: application/json" \
+  -d '{"name": "我的 Java 后端工程师", "config": {"tone": "pragmatic"}, "mcp_bindings": {}}'
+```
+
+给 Instance 安装 GitHub Skill：
+
+```bash
+curl -X POST http://localhost:8787/instances/my-zjf-digital-human/skills \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/owner/skill-repo"}'
+```
+
+当前版本会下载并登记 Skill 元数据，但不会执行 Skill 代码；Runtime 执行和权限沙箱会在后续阶段接入。
+
 ## 本地运行
 
 ```bash
@@ -384,11 +404,31 @@ curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
 ```
 
+创建一个数字人 Package：
+
+```bash
+curl -X POST http://localhost:8787/packages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-agent",
+    "name": "我的数字人",
+    "description": "一个自定义数字人",
+    "author": "me",
+    "tags": ["custom"],
+    "persona": "你是我的数字人分身。",
+    "prompt": "使用中文，回答务实、具体、可执行。",
+    "skills": [{"id": "code-review", "name": "代码 Review"}],
+    "mcp": {"servers": []}
+  }'
+```
+
 也可以打开管理台：
 
 ```text
 http://localhost:8787/admin
 ```
+
+管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、查看 Package 校验结果、安装 Package、编辑 Instance 配置、从 GitHub 安装 Skill、查看 Session、启用/禁用/删除 Experience。
 
 手动重算一次 Experience：
 

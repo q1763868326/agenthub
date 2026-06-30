@@ -340,8 +340,10 @@ The current prototype already has the minimal Phase 1 loop:
 
 - Package Registry: scans `packages/*.agent`
 - Package validation: checks required manifest fields, runtime, permission types, and required files
+- Package creation: `POST /packages`, with Persona, Prompt, Skills declarations, and MCP declarations
 - Package installation: `POST /instances`
-- Agent Instance: `GET /instances`
+- Agent Instance: `GET /instances`, `PATCH /instances/{instance_id}`
+- Skill installation: `POST /instances/{instance_id}/skills`, downloads a GitHub repository into an Instance
 - Session: `POST /instances/{instance_id}/sessions`
 - Session summary: `POST /sessions/{session_id}/summarize`
 - Experience: `GET /instances/{instance_id}/experiences`
@@ -362,6 +364,24 @@ curl -X PATCH http://localhost:8787/experiences/{experience_id} \
 curl -X DELETE http://localhost:8787/experiences/{experience_id}
 ```
 
+Instances can independently edit name, description, config, and MCP bindings:
+
+```bash
+curl -X PATCH http://localhost:8787/instances/my-zjf-digital-human \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Java Backend Engineer", "config": {"tone": "pragmatic"}, "mcp_bindings": {}}'
+```
+
+Install a GitHub Skill into an Instance:
+
+```bash
+curl -X POST http://localhost:8787/instances/my-zjf-digital-human/skills \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://github.com/owner/skill-repo"}'
+```
+
+The current version downloads and registers Skill metadata, but does not execute Skill code yet. Runtime execution and permission sandboxing will be connected in a later phase.
+
 ## Local Development
 
 ```bash
@@ -380,11 +400,31 @@ curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
 ```
 
+Create a digital human Package:
+
+```bash
+curl -X POST http://localhost:8787/packages \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "my-agent",
+    "name": "My Digital Human",
+    "description": "A custom digital human",
+    "author": "me",
+    "tags": ["custom"],
+    "persona": "You are my digital human twin.",
+    "prompt": "Answer concretely and pragmatically.",
+    "skills": [{"id": "code-review", "name": "Code Review"}],
+    "mcp": {"servers": []}
+  }'
+```
+
 You can also open the admin console:
 
 ```text
 http://localhost:8787/admin
 ```
+
+The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, package validation results, package installation, instance config editing, GitHub Skill installation, sessions, and enabling, disabling, or deleting Experiences.
 
 Manually recompute an Experience:
 
