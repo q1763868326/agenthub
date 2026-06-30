@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -27,6 +29,31 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = None
     session_id: str | None = None
     extra: dict[str, Any] = Field(default_factory=dict)
+
+
+def _latest_user_message(messages: list[ChatMessage]) -> dict[str, Any] | None:
+    for message in reversed(messages):
+        if message.role == "user":
+            return message.model_dump()
+    return messages[-1].model_dump() if messages else None
+
+
+async def _recording_stream(messages: list[dict[str, Any]], session_id: str | None) -> AsyncIterator[str]:
+    assistant_parts: list[str] = []
+    async for event in chat_completion_stream(messages=messages, model=None):
+        if event.startswith("data: ") and not event.startswith("data: [DONE]"):
+            try:
+                payload = json.loads(event.removeprefix("data: ").strip())
+            except json.JSONDecodeError:
+                payload = {}
+            for choice in payload.get("choices", []):
+                content = choice.get("delta", {}).get("content")
+                if content:
+                    assistant_parts.append(str(content))
+        yield event
+
+    if session_id and assistant_parts:
+        append_session_messages(session_id, [{"role": "assistant", "content": "".join(assistant_parts)}])
 
 
 @router.get("/models")
@@ -78,13 +105,15 @@ async def create_chat_completion(req: ChatCompletionRequest) -> Any:
         session_id = create_session(instance_id=instance.id, title="OpenAI Chat").id
     if session_id:
         try:
-            append_session_messages(session_id, [m.model_dump() for m in req.messages])
+            latest_user_message = _latest_user_message(req.messages)
+            if latest_user_message:
+                append_session_messages(session_id, [latest_user_message])
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     if req.stream:
         return StreamingResponse(
-            chat_completion_stream(messages=messages, model=None),
+            _recording_stream(messages=messages, session_id=session_id),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
