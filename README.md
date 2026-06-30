@@ -331,10 +331,23 @@ runtime:
 
 它可以让 Open WebUI 像选择模型一样选择不同数字人：
 
+- `my-zjf-digital-human`
+- `my-photographer-agent`
 - `zjf-digital-human`
 - `photographer-agent`
 
+启动时，AgentOS 会把 `packages/` 下的默认 Package 自动安装成用户 Instance。
+
 没有配置真实 LLM Key 时，系统会返回 mock 回复，方便先验证 Open WebUI 是否接通。
+
+当前已经具备第一阶段的最小闭环：
+
+- Package Registry：扫描 `packages/*.agent`
+- Package 安装：`POST /instances`
+- Agent Instance：`GET /instances`
+- Session：`POST /instances/{instance_id}/sessions`
+- OpenAI Compatible API：`GET /v1/models`、`POST /v1/chat/completions`
+- Open WebUI 接入：通过模型列表选择数字人实例
 
 ## 本地运行
 
@@ -348,6 +361,8 @@ uvicorn app.main:app --host 0.0.0.0 --port 8787
 
 ```bash
 curl http://localhost:8787/health
+curl http://localhost:8787/packages
+curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
 ```
 
@@ -390,6 +405,8 @@ API Key: 随便填一个，例如 agenthub
 然后模型列表里应该能看到：
 
 ```text
+my-zjf-digital-human
+my-photographer-agent
 zjf-digital-human
 photographer-agent
 ```

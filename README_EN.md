@@ -327,10 +327,23 @@ This repository is currently a minimal runnable **OpenAI-compatible digital huma
 
 It lets Open WebUI select digital humans like models:
 
+- `my-zjf-digital-human`
+- `my-photographer-agent`
 - `zjf-digital-human`
 - `photographer-agent`
 
+On startup, AgentOS automatically installs default Packages from `packages/` as user Instances.
+
 Without a real LLM key, the system returns mock responses so the Open WebUI integration can be verified first.
+
+The current prototype already has the minimal Phase 1 loop:
+
+- Package Registry: scans `packages/*.agent`
+- Package installation: `POST /instances`
+- Agent Instance: `GET /instances`
+- Session: `POST /instances/{instance_id}/sessions`
+- OpenAI Compatible API: `GET /v1/models`, `POST /v1/chat/completions`
+- Open WebUI integration: select digital human instances from the model list
 
 ## Local Development
 
@@ -344,6 +357,8 @@ Then visit:
 
 ```bash
 curl http://localhost:8787/health
+curl http://localhost:8787/packages
+curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
 ```
 
@@ -386,6 +401,8 @@ API Key: any value, for example agenthub
 The model list should show:
 
 ```text
+my-zjf-digital-human
+my-photographer-agent
 zjf-digital-human
 photographer-agent
 ```
