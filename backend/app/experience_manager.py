@@ -21,6 +21,7 @@ class AgentExperience:
     summary: str
     lessons: list[str]
     created_at: int
+    updated_at: int
 
 
 def _load_experiences() -> list[dict[str, Any]]:
@@ -39,6 +40,7 @@ def _from_dict(item: dict[str, Any]) -> AgentExperience:
         summary=item.get("summary", ""),
         lessons=item.get("lessons") or [],
         created_at=int(item.get("created_at", 0)),
+        updated_at=int(item.get("updated_at", item.get("created_at", 0))),
     )
 
 
@@ -80,15 +82,25 @@ def create_experience_from_session(session_id: str) -> AgentExperience:
     summary, lessons = build_session_summary(session)
     update_session_summary(session.id, summary)
 
+    now = int(time.time())
+    items = _load_experiences()
+    for item in items:
+        if item.get("source_session_id") == session.id:
+            item["summary"] = summary
+            item["lessons"] = lessons
+            item["updated_at"] = now
+            _save_experiences(items)
+            return _from_dict(item)
+
     experience = AgentExperience(
         id=f"exp_{uuid.uuid4().hex[:12]}",
         instance_id=session.instance_id,
         source_session_id=session.id,
         summary=summary,
         lessons=lessons,
-        created_at=int(time.time()),
+        created_at=now,
+        updated_at=now,
     )
-    items = _load_experiences()
     items.append(asdict(experience))
     _save_experiences(items)
     return experience

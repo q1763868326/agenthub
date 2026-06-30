@@ -351,6 +351,8 @@ runtime:
 - OpenAI Compatible API：`GET /v1/models`、`POST /v1/chat/completions`
 - Open WebUI 接入：通过模型列表选择数字人实例
 
+默认情况下，使用 Agent Instance 聊天时，AgentOS 会在每轮助手回复后自动更新当前 Session 的 Summary 和 Experience。`POST /sessions/{session_id}/summarize` 主要用于调试或手动重算。
+
 ## 本地运行
 
 ```bash
@@ -368,7 +370,7 @@ curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
 ```
 
-生成一次 Experience：
+手动重算一次 Experience：
 
 ```bash
 curl -X POST http://localhost:8787/sessions/{session_id}/summarize

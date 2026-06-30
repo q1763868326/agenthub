@@ -347,6 +347,8 @@ The current prototype already has the minimal Phase 1 loop:
 - OpenAI Compatible API: `GET /v1/models`, `POST /v1/chat/completions`
 - Open WebUI integration: select digital human instances from the model list
 
+By default, when chatting with an Agent Instance, AgentOS automatically updates the current Session Summary and Experience after each assistant response. `POST /sessions/{session_id}/summarize` is mainly for debugging or manual recomputation.
+
 ## Local Development
 
 ```bash
@@ -364,7 +366,7 @@ curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
 ```
 
-Generate an Experience:
+Manually recompute an Experience:
 
 ```bash
 curl -X POST http://localhost:8787/sessions/{session_id}/summarize

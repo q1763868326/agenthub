@@ -9,7 +9,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .agent_loader import list_agents
-from .experience_manager import build_experience_prompt
+from .experience_manager import build_experience_prompt, create_experience_from_session
 from .instance_manager import list_instances, resolve_agent
 from .openai_client import chat_completion, chat_completion_stream
 from .session_manager import append_session_messages, create_session
@@ -39,6 +39,13 @@ def _latest_user_message(messages: list[ChatMessage]) -> dict[str, Any] | None:
     return messages[-1].model_dump() if messages else None
 
 
+def _refresh_experience(session_id: str) -> None:
+    try:
+        create_experience_from_session(session_id)
+    except ValueError:
+        return
+
+
 async def _recording_stream(messages: list[dict[str, Any]], session_id: str | None) -> AsyncIterator[str]:
     assistant_parts: list[str] = []
     async for event in chat_completion_stream(messages=messages, model=None):
@@ -55,6 +62,7 @@ async def _recording_stream(messages: list[dict[str, Any]], session_id: str | No
 
     if session_id and assistant_parts:
         append_session_messages(session_id, [{"role": "assistant", "content": "".join(assistant_parts)}])
+        _refresh_experience(session_id)
 
 
 @router.get("/models")
@@ -129,4 +137,5 @@ async def create_chat_completion(req: ChatCompletionRequest) -> Any:
         message = choice.get("message")
         if message:
             append_session_messages(session_id, [message])
+            _refresh_experience(session_id)
     return response
