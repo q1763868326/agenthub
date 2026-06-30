@@ -46,6 +46,7 @@ def _read_skill_metadata(path: Path, fallback_id: str, source_url: str) -> dict[
         "source": source_url,
         "path": str(path),
         "entry": "SKILL.md" if skill_md.exists() else data.get("entry", ""),
+        "enabled": True,
     }
 
 
@@ -73,3 +74,55 @@ def install_skill_from_github(instance_id: str, url: str) -> AgentInstance:
     skills = [skill for skill in instance.installed_skills if skill.get("id") != metadata["id"]]
     skills.append(metadata)
     return update_instance(instance_id=instance_id, installed_skills=skills)
+
+
+def update_skill_enabled(instance_id: str, skill_id: str, enabled: bool) -> AgentInstance:
+    instance = get_instance(instance_id)
+    if not instance:
+        raise ValueError(f"Agent instance not found: {instance_id}")
+
+    skills = []
+    found = False
+    for skill in instance.installed_skills:
+        item = dict(skill)
+        if item.get("id") == skill_id:
+            item["enabled"] = enabled
+            found = True
+        skills.append(item)
+    if not found:
+        raise ValueError(f"Agent skill not found: {skill_id}")
+    return update_instance(instance_id=instance_id, installed_skills=skills)
+
+
+def uninstall_skill(instance_id: str, skill_id: str) -> AgentInstance:
+    instance = get_instance(instance_id)
+    if not instance:
+        raise ValueError(f"Agent instance not found: {instance_id}")
+
+    removed = [skill for skill in instance.installed_skills if skill.get("id") == skill_id]
+    if not removed:
+        raise ValueError(f"Agent skill not found: {skill_id}")
+
+    for skill in removed:
+        path = skill.get("path")
+        if path:
+            shutil.rmtree(path, ignore_errors=True)
+
+    skills = [skill for skill in instance.installed_skills if skill.get("id") != skill_id]
+    return update_instance(instance_id=instance_id, installed_skills=skills)
+
+
+def build_skill_prompt(instance: AgentInstance) -> str:
+    enabled_skills = [skill for skill in instance.installed_skills if skill.get("enabled", True)]
+    if not enabled_skills:
+        return ""
+
+    lines = ["# Installed Skills", "以下是当前数字人已启用的 Skill 声明。它们代表可用能力边界，但当前版本不会直接执行外部代码："]
+    for skill in enabled_skills:
+        line = f"- {skill.get('name') or skill.get('id')} ({skill.get('id')})"
+        if skill.get("description"):
+            line += f": {skill['description']}"
+        if skill.get("entry"):
+            line += f" [entry: {skill['entry']}]"
+        lines.append(line)
+    return "\n".join(lines)

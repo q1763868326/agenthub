@@ -14,7 +14,8 @@ def _mock_content(messages: list[dict[str, Any]]) -> str:
     last_user = next((m.get("content", "") for m in reversed(messages) if m.get("role") == "user"), "")
     system_text = "\n".join(str(m.get("content", "")) for m in messages if m.get("role") == "system")
     experience_hint = "我已加载这个数字人的历史经验。 " if "# Experience" in system_text else ""
-    return "我是 AgentHub 的 mock 回复。" + experience_hint + "你已经成功连通了数字人接口。你刚才说：" + str(last_user)
+    skill_hint = "我已加载这个数字人的启用 Skill。 " if "# Installed Skills" in system_text else ""
+    return "我是 AgentHub 的 mock 回复。" + experience_hint + skill_hint + "你已经成功连通了数字人接口。你刚才说：" + str(last_user)
 
 
 async def chat_completion(messages: list[dict[str, Any]], model: str | None = None) -> dict[str, Any]:

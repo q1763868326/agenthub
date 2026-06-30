@@ -348,6 +348,7 @@ runtime:
 - Package 安装：`POST /instances`
 - Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`
 - Skill 安装：`POST /instances/{instance_id}/skills`，支持从 GitHub 仓库下载到实例
+- Skill 生命周期：`PATCH /instances/{instance_id}/skills/{skill_id}`、`DELETE /instances/{instance_id}/skills/{skill_id}`
 - Session：`POST /instances/{instance_id}/sessions`
 - Session 总结：`POST /sessions/{session_id}/summarize`
 - Experience：`GET /instances/{instance_id}/experiences`
@@ -384,7 +385,17 @@ curl -X POST http://localhost:8787/instances/my-zjf-digital-human/skills \
   -d '{"url": "https://github.com/owner/skill-repo"}'
 ```
 
-当前版本会下载并登记 Skill 元数据，但不会执行 Skill 代码；Runtime 执行和权限沙箱会在后续阶段接入。
+启用或卸载 Skill：
+
+```bash
+curl -X PATCH http://localhost:8787/instances/my-zjf-digital-human/skills/code-review \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+curl -X DELETE http://localhost:8787/instances/my-zjf-digital-human/skills/code-review
+```
+
+当前版本会下载并登记 Skill 元数据，并把启用的 Skill 声明注入数字人的 system prompt，但不会执行 Skill 代码；Runtime 执行和权限沙箱会在后续阶段接入。
 
 ## 本地运行
 
@@ -428,7 +439,7 @@ curl -X POST http://localhost:8787/packages \
 http://localhost:8787/admin
 ```
 
-管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、查看 Package 校验结果、安装 Package、编辑 Instance 配置、从 GitHub 安装 Skill、查看 Session、启用/禁用/删除 Experience。
+管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、查看 Package 校验结果、安装 Package、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
 
 手动重算一次 Experience：
 

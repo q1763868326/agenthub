@@ -22,7 +22,7 @@ class AgentInstance:
     created_at: int
     updated_at: int
     config: dict[str, Any]
-    installed_skills: list[str]
+    installed_skills: list[dict[str, Any]]
     mcp_bindings: dict[str, Any]
 
 

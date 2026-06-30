@@ -19,7 +19,7 @@ from .experience_manager import (
 from .instance_manager import ensure_default_instances, install_package, list_instances, update_instance
 from .openai_api import router as openai_router
 from .session_manager import create_session, get_session, list_sessions
-from .skill_manager import install_skill_from_github
+from .skill_manager import install_skill_from_github, uninstall_skill, update_skill_enabled
 
 
 @asynccontextmanager
@@ -78,6 +78,10 @@ class UpdateInstanceRequest(BaseModel):
 
 class InstallSkillRequest(BaseModel):
     url: str
+
+
+class UpdateSkillRequest(BaseModel):
+    enabled: bool
 
 
 class UpdateExperienceRequest(BaseModel):
@@ -172,6 +176,24 @@ def install_skill(instance_id: str, req: InstallSkillRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to install skill: {exc}") from exc
+    return instance.__dict__
+
+
+@app.patch("/instances/{instance_id}/skills/{skill_id}")
+def update_skill(instance_id: str, skill_id: str, req: UpdateSkillRequest) -> dict:
+    try:
+        instance = update_skill_enabled(instance_id=instance_id, skill_id=skill_id, enabled=req.enabled)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return instance.__dict__
+
+
+@app.delete("/instances/{instance_id}/skills/{skill_id}")
+def remove_skill(instance_id: str, skill_id: str) -> dict:
+    try:
+        instance = uninstall_skill(instance_id=instance_id, skill_id=skill_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     return instance.__dict__
 
 

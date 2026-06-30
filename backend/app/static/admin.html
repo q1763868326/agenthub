@@ -243,7 +243,19 @@
             <div>
               <h3>Installed Skills</h3>
               ${(instance.installed_skills || []).map((skill) => `
-                <p class="muted">${escapeHtml(skill.name || skill.id)} · ${escapeHtml(skill.source || "")}</p>
+                <article class="item">
+                  <div class="row">
+                    <h3>${escapeHtml(skill.name || skill.id)}</h3>
+                    <span class="badge">${skill.enabled === false ? "disabled" : "enabled"}</span>
+                  </div>
+                  <p class="muted">${escapeHtml(skill.id)} · ${escapeHtml(skill.source || "")}</p>
+                  <div class="row" style="margin-top: 10px">
+                    <button onclick="toggleSkill('${instance.id}', '${skill.id}', ${skill.enabled === false})">
+                      ${skill.enabled === false ? "启用" : "禁用"}
+                    </button>
+                    <button class="danger" onclick="uninstallSkill('${instance.id}', '${skill.id}')">卸载</button>
+                  </div>
+                </article>
               `).join("") || '<p class="muted">暂无 Skill</p>'}
             </div>
             ${json(instance)}
@@ -406,6 +418,25 @@
           body: JSON.stringify({ url }),
         });
         state.instances = state.instances.map((item) => (item.id === id ? updated : item));
+        state.selectedInstance = updated;
+        renderInstances();
+        document.querySelector("#detail").innerHTML = instanceForm(updated);
+      }
+
+      async function toggleSkill(instanceId, skillId, enabled) {
+        const updated = await api(`/instances/${instanceId}/skills/${skillId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ enabled }),
+        });
+        state.instances = state.instances.map((item) => (item.id === instanceId ? updated : item));
+        state.selectedInstance = updated;
+        renderInstances();
+        document.querySelector("#detail").innerHTML = instanceForm(updated);
+      }
+
+      async function uninstallSkill(instanceId, skillId) {
+        const updated = await api(`/instances/${instanceId}/skills/${skillId}`, { method: "DELETE" });
+        state.instances = state.instances.map((item) => (item.id === instanceId ? updated : item));
         state.selectedInstance = updated;
         renderInstances();
         document.querySelector("#detail").innerHTML = instanceForm(updated);

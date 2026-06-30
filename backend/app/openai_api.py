@@ -13,6 +13,7 @@ from .experience_manager import build_experience_prompt, refresh_experience_if_n
 from .instance_manager import list_instances, resolve_agent
 from .openai_client import chat_completion, chat_completion_stream
 from .session_manager import append_session_messages, create_session
+from .skill_manager import build_skill_prompt
 
 router = APIRouter(prefix="/v1", tags=["openai-compatible"])
 
@@ -108,8 +109,8 @@ async def create_chat_completion(req: ChatCompletionRequest) -> Any:
     system_prompt = agent.system_prompt
     if instance:
         experience_prompt = build_experience_prompt(instance.id)
-        if experience_prompt:
-            system_prompt = "\n\n".join(part for part in [system_prompt, experience_prompt] if part)
+        skill_prompt = build_skill_prompt(instance)
+        system_prompt = "\n\n".join(part for part in [system_prompt, skill_prompt, experience_prompt] if part)
     if system_prompt:
         messages = [{"role": "system", "content": system_prompt}] + messages
 

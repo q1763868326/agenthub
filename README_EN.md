@@ -344,6 +344,7 @@ The current prototype already has the minimal Phase 1 loop:
 - Package installation: `POST /instances`
 - Agent Instance: `GET /instances`, `PATCH /instances/{instance_id}`
 - Skill installation: `POST /instances/{instance_id}/skills`, downloads a GitHub repository into an Instance
+- Skill lifecycle: `PATCH /instances/{instance_id}/skills/{skill_id}`, `DELETE /instances/{instance_id}/skills/{skill_id}`
 - Session: `POST /instances/{instance_id}/sessions`
 - Session summary: `POST /sessions/{session_id}/summarize`
 - Experience: `GET /instances/{instance_id}/experiences`
@@ -380,7 +381,17 @@ curl -X POST http://localhost:8787/instances/my-zjf-digital-human/skills \
   -d '{"url": "https://github.com/owner/skill-repo"}'
 ```
 
-The current version downloads and registers Skill metadata, but does not execute Skill code yet. Runtime execution and permission sandboxing will be connected in a later phase.
+Enable, disable, or uninstall a Skill:
+
+```bash
+curl -X PATCH http://localhost:8787/instances/my-zjf-digital-human/skills/code-review \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+curl -X DELETE http://localhost:8787/instances/my-zjf-digital-human/skills/code-review
+```
+
+The current version downloads and registers Skill metadata, and injects enabled Skill declarations into the digital human's system prompt, but does not execute Skill code yet. Runtime execution and permission sandboxing will be connected in a later phase.
 
 ## Local Development
 
@@ -424,7 +435,7 @@ You can also open the admin console:
 http://localhost:8787/admin
 ```
 
-The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, package validation results, package installation, instance config editing, GitHub Skill installation, sessions, and enabling, disabling, or deleting Experiences.
+The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, package validation results, package installation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
 
 Manually recompute an Experience:
 
