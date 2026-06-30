@@ -344,10 +344,21 @@ The current prototype already has the minimal Phase 1 loop:
 - Session: `POST /instances/{instance_id}/sessions`
 - Session summary: `POST /sessions/{session_id}/summarize`
 - Experience: `GET /instances/{instance_id}/experiences`
+- Experience management: `GET /experiences/{experience_id}`, `PATCH /experiences/{experience_id}`, `DELETE /experiences/{experience_id}`
 - OpenAI Compatible API: `GET /v1/models`, `POST /v1/chat/completions`
 - Open WebUI integration: select digital human instances from the model list
 
 By default, when chatting with an Agent Instance, AgentOS records raw messages and updates the current Session Summary and Experience only when a threshold is reached. The default policy refreshes every 6 messages and skips very short user inputs. `POST /sessions/{session_id}/summarize` is mainly for debugging or manual recomputation.
+
+Experiences are enabled by default and injected into future conversations through the system prompt. Unwanted Experiences can be disabled or deleted:
+
+```bash
+curl -X PATCH http://localhost:8787/experiences/{experience_id} \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+curl -X DELETE http://localhost:8787/experiences/{experience_id}
+```
 
 ## Local Development
 

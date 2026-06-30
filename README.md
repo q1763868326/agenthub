@@ -348,10 +348,21 @@ runtime:
 - Session：`POST /instances/{instance_id}/sessions`
 - Session 总结：`POST /sessions/{session_id}/summarize`
 - Experience：`GET /instances/{instance_id}/experiences`
+- Experience 管理：`GET /experiences/{experience_id}`、`PATCH /experiences/{experience_id}`、`DELETE /experiences/{experience_id}`
 - OpenAI Compatible API：`GET /v1/models`、`POST /v1/chat/completions`
 - Open WebUI 接入：通过模型列表选择数字人实例
 
 默认情况下，使用 Agent Instance 聊天时，AgentOS 会记录原始消息，并按阈值自动更新当前 Session 的 Summary 和 Experience。默认策略是每累计 6 条消息触发一次，并跳过过短的用户输入。`POST /sessions/{session_id}/summarize` 主要用于调试或手动重算。
+
+Experience 默认启用，会被注入到后续对话的 system prompt。可以禁用或删除不想继续影响数字人的经验：
+
+```bash
+curl -X PATCH http://localhost:8787/experiences/{experience_id} \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": false}'
+
+curl -X DELETE http://localhost:8787/experiences/{experience_id}
+```
 
 ## 本地运行
 

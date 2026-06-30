@@ -20,6 +20,7 @@ class AgentExperience:
     source_session_id: str
     summary: str
     lessons: list[str]
+    enabled: bool
     created_at: int
     updated_at: int
 
@@ -39,17 +40,51 @@ def _from_dict(item: dict[str, Any]) -> AgentExperience:
         source_session_id=item["source_session_id"],
         summary=item.get("summary", ""),
         lessons=item.get("lessons") or [],
+        enabled=bool(item.get("enabled", True)),
         created_at=int(item.get("created_at", 0)),
         updated_at=int(item.get("updated_at", item.get("created_at", 0))),
     )
 
 
-def list_experiences(instance_id: str | None = None, limit: int | None = None) -> list[AgentExperience]:
+def list_experiences(
+    instance_id: str | None = None,
+    limit: int | None = None,
+    enabled_only: bool = False,
+) -> list[AgentExperience]:
     experiences = [_from_dict(item) for item in _load_experiences()]
     if instance_id:
         experiences = [experience for experience in experiences if experience.instance_id == instance_id]
+    if enabled_only:
+        experiences = [experience for experience in experiences if experience.enabled]
     experiences.sort(key=lambda item: item.created_at, reverse=True)
     return experiences[:limit] if limit else experiences
+
+
+def get_experience(experience_id: str) -> AgentExperience | None:
+    for item in _load_experiences():
+        if item.get("id") == experience_id:
+            return _from_dict(item)
+    return None
+
+
+def update_experience_enabled(experience_id: str, enabled: bool) -> AgentExperience:
+    items = _load_experiences()
+    now = int(time.time())
+    for item in items:
+        if item.get("id") == experience_id:
+            item["enabled"] = enabled
+            item["updated_at"] = now
+            _save_experiences(items)
+            return _from_dict(item)
+    raise ValueError(f"Agent experience not found: {experience_id}")
+
+
+def delete_experience(experience_id: str) -> None:
+    items = _load_experiences()
+    remaining = [item for item in items if item.get("id") != experience_id]
+    if len(remaining) == len(items):
+        raise ValueError(f"Agent experience not found: {experience_id}")
+    _save_experiences(remaining)
 
 
 def _message_text(message: dict[str, Any]) -> str:
@@ -113,6 +148,7 @@ def create_experience_from_session(session_id: str) -> AgentExperience:
         if item.get("source_session_id") == session.id:
             item["summary"] = summary
             item["lessons"] = lessons
+            item["enabled"] = item.get("enabled", True)
             item["updated_at"] = now
             _save_experiences(items)
             return _from_dict(item)
@@ -123,6 +159,7 @@ def create_experience_from_session(session_id: str) -> AgentExperience:
         source_session_id=session.id,
         summary=summary,
         lessons=lessons,
+        enabled=True,
         created_at=now,
         updated_at=now,
     )
@@ -132,7 +169,7 @@ def create_experience_from_session(session_id: str) -> AgentExperience:
 
 
 def build_experience_prompt(instance_id: str, limit: int = 5) -> str:
-    experiences = list_experiences(instance_id=instance_id, limit=limit)
+    experiences = list_experiences(instance_id=instance_id, limit=limit, enabled_only=True)
     if not experiences:
         return ""
 

@@ -6,7 +6,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from .agent_loader import list_agents
-from .experience_manager import create_experience_from_session, list_experiences
+from .experience_manager import (
+    create_experience_from_session,
+    delete_experience,
+    get_experience,
+    list_experiences,
+    update_experience_enabled,
+)
 from .instance_manager import ensure_default_instances, install_package, list_instances
 from .openai_api import router as openai_router
 from .session_manager import create_session, get_session, list_sessions
@@ -39,6 +45,10 @@ class InstallPackageRequest(BaseModel):
 
 class CreateSessionRequest(BaseModel):
     title: str | None = None
+
+
+class UpdateExperienceRequest(BaseModel):
+    enabled: bool
 
 
 @app.get("/health")
@@ -115,3 +125,29 @@ def summarize_session(session_id: str) -> dict:
 @app.get("/instances/{instance_id}/experiences")
 def experiences(instance_id: str) -> list[dict]:
     return [experience.__dict__ for experience in list_experiences(instance_id=instance_id)]
+
+
+@app.get("/experiences/{experience_id}")
+def experience_detail(experience_id: str) -> dict:
+    experience = get_experience(experience_id)
+    if not experience:
+        raise HTTPException(status_code=404, detail=f"Agent experience not found: {experience_id}")
+    return experience.__dict__
+
+
+@app.patch("/experiences/{experience_id}")
+def update_experience(experience_id: str, req: UpdateExperienceRequest) -> dict:
+    try:
+        experience = update_experience_enabled(experience_id, req.enabled)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return experience.__dict__
+
+
+@app.delete("/experiences/{experience_id}")
+def remove_experience(experience_id: str) -> dict:
+    try:
+        delete_experience(experience_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"deleted": True, "id": experience_id}
