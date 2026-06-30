@@ -1,0 +1,15 @@
+id: zjf-digital-human
+name: 朱健峰数字人
+version: 0.1.0
+description: 一个 Java/SpringBoot 后端工程师风格的数字人示例。
+author: zjf
+tags:
+  - java
+  - springboot
+  - backend
+  - architecture
+permissions:
+  - mcp.call
+  - file.read
+runtime:
+  type: openai-compatible

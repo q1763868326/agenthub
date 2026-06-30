@@ -1,0 +1,31 @@
+services:
+  agenthub:
+    build: ./backend
+    ports:
+      - "8787:8787"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      - AGENTHUB_DEFAULT_MODEL=${AGENTHUB_DEFAULT_MODEL:-gpt-4o-mini}
+      - AGENTHUB_PACKAGES_DIR=/app/packages
+    volumes:
+      - ./packages:/app/packages
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    depends_on:
+      - agenthub
+    ports:
+      - "3000:8080"
+    environment:
+      - OPENAI_API_BASE_URL=http://agenthub:8787/v1
+      - OPENAI_API_KEY=${OPEN_WEBUI_OPENAI_API_KEY:-agenthub}
+      - ENABLE_OPENAI_API=True
+      - ENABLE_OLLAMA_API=False
+      - WEBUI_AUTH=${WEBUI_AUTH:-False}
+      - WEBUI_NAME=${WEBUI_NAME:-AgentHub WebUI}
+    volumes:
+      - open-webui:/app/backend/data
+
+volumes:
+  open-webui:

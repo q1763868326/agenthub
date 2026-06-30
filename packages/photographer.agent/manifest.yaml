@@ -1,0 +1,13 @@
+id: photographer-agent
+name: 摄影师 Agent
+version: 0.1.0
+description: 一个偏日系写真、胶片审美的摄影师数字人示例。
+author: agenthub
+tags:
+  - photography
+  - portrait
+  - style
+permissions:
+  - mcp.call
+runtime:
+  type: openai-compatible
