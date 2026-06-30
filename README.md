@@ -343,6 +343,7 @@ runtime:
 当前已经具备第一阶段的最小闭环：
 
 - Package Registry：扫描 `packages/*.agent`
+- Package 校验：检查 manifest 必填字段、runtime、权限类型和必需文件
 - Package 安装：`POST /instances`
 - Agent Instance：`GET /instances`
 - Session：`POST /instances/{instance_id}/sessions`
@@ -351,6 +352,7 @@ runtime:
 - Experience 管理：`GET /experiences/{experience_id}`、`PATCH /experiences/{experience_id}`、`DELETE /experiences/{experience_id}`
 - OpenAI Compatible API：`GET /v1/models`、`POST /v1/chat/completions`
 - Open WebUI 接入：通过模型列表选择数字人实例
+- AgentOS Admin：`GET /admin`
 
 默认情况下，使用 Agent Instance 聊天时，AgentOS 会记录原始消息，并按阈值自动更新当前 Session 的 Summary 和 Experience。默认策略是每累计 6 条消息触发一次，并跳过过短的用户输入。`POST /sessions/{session_id}/summarize` 主要用于调试或手动重算。
 
@@ -377,8 +379,15 @@ uvicorn app.main:app --host 0.0.0.0 --port 8787
 ```bash
 curl http://localhost:8787/health
 curl http://localhost:8787/packages
+curl http://localhost:8787/packages/zjf-digital-human
 curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
+```
+
+也可以打开管理台：
+
+```text
+http://localhost:8787/admin
 ```
 
 手动重算一次 Experience：

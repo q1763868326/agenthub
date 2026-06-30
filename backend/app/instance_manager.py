@@ -70,6 +70,9 @@ def install_package(package_id: str, name: str | None = None, config: dict[str, 
     package = get_agent(package_id)
     if not package:
         raise ValueError(f"Agent package not found: {package_id}")
+    if not package.validation.valid:
+        errors = "; ".join(package.validation.errors)
+        raise ValueError(f"Agent package is invalid: {errors}")
 
     now = int(time.time())
     base_id = _slug(name or f"my-{package.id}")

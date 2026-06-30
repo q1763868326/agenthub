@@ -1,11 +1,14 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .agent_loader import list_agents
+from .agent_loader import get_agent, list_agents, package_detail, package_summary
 from .experience_manager import (
     create_experience_from_session,
     delete_experience,
@@ -36,6 +39,10 @@ app.add_middleware(
 
 app.include_router(openai_router)
 
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
 
 class InstallPackageRequest(BaseModel):
     package_id: str
@@ -51,6 +58,11 @@ class UpdateExperienceRequest(BaseModel):
     enabled: bool
 
 
+@app.get("/admin", include_in_schema=False)
+def admin() -> FileResponse:
+    return FileResponse(STATIC_DIR / "admin.html")
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "packages": len(list_agents()), "instances": len(list_instances())}
@@ -58,17 +70,15 @@ def health() -> dict:
 
 @app.get("/packages")
 def packages() -> list[dict]:
-    return [
-        {
-            "id": agent.id,
-            "name": agent.name,
-            "version": agent.version,
-            "description": agent.description,
-            "author": agent.author,
-            "tags": agent.tags,
-        }
-        for agent in list_agents()
-    ]
+    return [package_summary(agent) for agent in list_agents()]
+
+
+@app.get("/packages/{package_id}")
+def package(package_id: str) -> dict:
+    agent = get_agent(package_id)
+    if not agent:
+        raise HTTPException(status_code=404, detail=f"Agent package not found: {package_id}")
+    return package_detail(agent)
 
 
 @app.get("/agents")
@@ -81,7 +91,9 @@ def create_instance(req: InstallPackageRequest) -> dict:
     try:
         instance = install_package(package_id=req.package_id, name=req.name, config=req.config)
     except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        message = str(exc)
+        status_code = 400 if "invalid" in message else 404
+        raise HTTPException(status_code=status_code, detail=message) from exc
     return instance.__dict__
 
 

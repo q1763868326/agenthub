@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AgentOS Admin</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --panel: #fff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --line: #d8dee7;
+        --accent: #155e75;
+        --danger: #b42318;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      header {
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+        padding: 18px 24px;
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 16px; margin-bottom: 12px; }
+      h3 { font-size: 14px; }
+      main {
+        display: grid;
+        grid-template-columns: minmax(280px, 360px) 1fr;
+        gap: 16px;
+        padding: 16px;
+      }
+      section, .detail {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 16px;
+      }
+      .stack { display: grid; gap: 12px; }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .item {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 12px;
+        background: #fbfcfd;
+      }
+      .item[aria-selected="true"] {
+        border-color: var(--accent);
+        box-shadow: inset 3px 0 0 var(--accent);
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .muted { color: var(--muted); font-size: 12px; }
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 2px 8px;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      button {
+        min-height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        padding: 6px 10px;
+        cursor: pointer;
+      }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.danger { color: var(--danger); }
+      pre {
+        overflow: auto;
+        margin: 0;
+        padding: 12px;
+        border-radius: 8px;
+        background: #111827;
+        color: #e5e7eb;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      @media (max-width: 900px) {
+        main, .cols { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="row">
+        <div>
+          <h1>AgentOS Admin</h1>
+          <p class="muted">Packages, Instances, Sessions, Experiences</p>
+        </div>
+        <button id="refresh">刷新</button>
+      </div>
+    </header>
+    <main>
+      <div class="stack">
+        <section>
+          <h2>Packages</h2>
+          <div id="packages" class="stack"></div>
+        </section>
+        <section>
+          <h2>Instances</h2>
+          <div id="instances" class="stack"></div>
+        </section>
+      </div>
+      <div class="stack">
+        <section>
+          <h2>Detail</h2>
+          <div id="detail" class="detail muted">选择一个 Package 或 Instance</div>
+        </section>
+        <div class="cols">
+          <section>
+            <h2>Sessions</h2>
+            <div id="sessions" class="stack"></div>
+          </section>
+          <section>
+            <h2>Experiences</h2>
+            <div id="experiences" class="stack"></div>
+          </section>
+        </div>
+      </div>
+    </main>
+    <script>
+      const state = { packages: [], instances: [], selectedInstance: null };
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          ...options,
+        });
+        if (!response.ok) throw new Error(await response.text());
+        return response.json();
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function json(data) {
+        return `<pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+      }
+
+      async function load() {
+        const [packages, instances] = await Promise.all([api("/packages"), api("/instances")]);
+        state.packages = packages;
+        state.instances = instances;
+        renderPackages();
+        renderInstances();
+        if (state.selectedInstance) await selectInstance(state.selectedInstance.id);
+      }
+
+      function renderPackages() {
+        document.querySelector("#packages").innerHTML = state.packages.map((pkg) => `
+          <article class="item">
+            <div class="row">
+              <h3>${escapeHtml(pkg.name)}</h3>
+              <span class="badge">${pkg.valid ? "valid" : "invalid"}</span>
+            </div>
+            <p class="muted">${escapeHtml(pkg.id)} · ${escapeHtml(pkg.version)}</p>
+            <p class="muted">${escapeHtml(pkg.description || "")}</p>
+            <div class="row" style="margin-top: 10px">
+              <button onclick="showPackage('${pkg.id}')">详情</button>
+              <button class="primary" onclick="installPackage('${pkg.id}')">安装</button>
+            </div>
+          </article>
+        `).join("");
+      }
+
+      function renderInstances() {
+        document.querySelector("#instances").innerHTML = state.instances.map((instance) => `
+          <article class="item" aria-selected="${state.selectedInstance?.id === instance.id}">
+            <div class="row">
+              <h3>${escapeHtml(instance.name)}</h3>
+              <span class="badge">${escapeHtml(instance.package_version)}</span>
+            </div>
+            <p class="muted">${escapeHtml(instance.id)}</p>
+            <p class="muted">Package: ${escapeHtml(instance.package_id)}</p>
+            <div class="row" style="margin-top: 10px">
+              <button onclick="selectInstance('${instance.id}')">查看</button>
+            </div>
+          </article>
+        `).join("");
+      }
+
+      async function showPackage(id) {
+        document.querySelector("#detail").innerHTML = json(await api(`/packages/${id}`));
+      }
+
+      async function installPackage(id) {
+        await api("/instances", { method: "POST", body: JSON.stringify({ package_id: id }) });
+        await load();
+      }
+
+      async function selectInstance(id) {
+        state.selectedInstance = state.instances.find((item) => item.id === id) || { id };
+        renderInstances();
+        document.querySelector("#detail").innerHTML = json(state.selectedInstance);
+        const [sessions, experiences] = await Promise.all([
+          api(`/instances/${id}/sessions`),
+          api(`/instances/${id}/experiences`),
+        ]);
+        renderSessions(sessions);
+        renderExperiences(experiences);
+      }
+
+      function renderSessions(sessions) {
+        document.querySelector("#sessions").innerHTML = sessions.map((session) => `
+          <article class="item">
+            <h3>${escapeHtml(session.title)}</h3>
+            <p class="muted">${escapeHtml(session.id)}</p>
+            <p class="muted">${escapeHtml(session.summary || "未总结")}</p>
+          </article>
+        `).join("") || '<p class="muted">暂无 Session</p>';
+      }
+
+      function renderExperiences(experiences) {
+        document.querySelector("#experiences").innerHTML = experiences.map((experience) => `
+          <article class="item">
+            <div class="row">
+              <h3>${escapeHtml(experience.id)}</h3>
+              <span class="badge">${experience.enabled ? "enabled" : "disabled"}</span>
+            </div>
+            <p class="muted">${escapeHtml(experience.summary)}</p>
+            <div class="row" style="margin-top: 10px">
+              <button onclick="toggleExperience('${experience.id}', ${!experience.enabled})">
+                ${experience.enabled ? "禁用" : "启用"}
+              </button>
+              <button class="danger" onclick="deleteExperience('${experience.id}')">删除</button>
+            </div>
+          </article>
+        `).join("") || '<p class="muted">暂无 Experience</p>';
+      }
+
+      async function toggleExperience(id, enabled) {
+        await api(`/experiences/${id}`, { method: "PATCH", body: JSON.stringify({ enabled }) });
+        await selectInstance(state.selectedInstance.id);
+      }
+
+      async function deleteExperience(id) {
+        await api(`/experiences/${id}`, { method: "DELETE" });
+        await selectInstance(state.selectedInstance.id);
+      }
+
+      document.querySelector("#refresh").addEventListener("click", load);
+      load().catch((error) => {
+        document.querySelector("#detail").textContent = error.message;
+      });
+    </script>
+  </body>
+</html>

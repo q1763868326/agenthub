@@ -339,6 +339,7 @@ Without a real LLM key, the system returns mock responses so the Open WebUI inte
 The current prototype already has the minimal Phase 1 loop:
 
 - Package Registry: scans `packages/*.agent`
+- Package validation: checks required manifest fields, runtime, permission types, and required files
 - Package installation: `POST /instances`
 - Agent Instance: `GET /instances`
 - Session: `POST /instances/{instance_id}/sessions`
@@ -347,6 +348,7 @@ The current prototype already has the minimal Phase 1 loop:
 - Experience management: `GET /experiences/{experience_id}`, `PATCH /experiences/{experience_id}`, `DELETE /experiences/{experience_id}`
 - OpenAI Compatible API: `GET /v1/models`, `POST /v1/chat/completions`
 - Open WebUI integration: select digital human instances from the model list
+- AgentOS Admin: `GET /admin`
 
 By default, when chatting with an Agent Instance, AgentOS records raw messages and updates the current Session Summary and Experience only when a threshold is reached. The default policy refreshes every 6 messages and skips very short user inputs. `POST /sessions/{session_id}/summarize` is mainly for debugging or manual recomputation.
 
@@ -373,8 +375,15 @@ Then visit:
 ```bash
 curl http://localhost:8787/health
 curl http://localhost:8787/packages
+curl http://localhost:8787/packages/zjf-digital-human
 curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
+```
+
+You can also open the admin console:
+
+```text
+http://localhost:8787/admin
 ```
 
 Manually recompute an Experience:
