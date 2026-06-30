@@ -342,6 +342,8 @@ The current prototype already has the minimal Phase 1 loop:
 - Package installation: `POST /instances`
 - Agent Instance: `GET /instances`
 - Session: `POST /instances/{instance_id}/sessions`
+- Session summary: `POST /sessions/{session_id}/summarize`
+- Experience: `GET /instances/{instance_id}/experiences`
 - OpenAI Compatible API: `GET /v1/models`, `POST /v1/chat/completions`
 - Open WebUI integration: select digital human instances from the model list
 
@@ -360,6 +362,13 @@ curl http://localhost:8787/health
 curl http://localhost:8787/packages
 curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
+```
+
+Generate an Experience:
+
+```bash
+curl -X POST http://localhost:8787/sessions/{session_id}/summarize
+curl http://localhost:8787/instances/my-zjf-digital-human/experiences
 ```
 
 ## Docker

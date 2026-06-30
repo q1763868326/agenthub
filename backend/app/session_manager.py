@@ -87,3 +87,14 @@ def append_session_messages(session_id: str, messages: list[dict[str, Any]]) -> 
             _save_sessions(items)
             return _from_dict(item)
     raise ValueError(f"Agent session not found: {session_id}")
+
+def update_session_summary(session_id: str, summary: str) -> AgentSession:
+    items = _load_sessions()
+    now = int(time.time())
+    for item in items:
+        if item["id"] == session_id:
+            item["summary"] = summary
+            item["updated_at"] = now
+            _save_sessions(items)
+            return _from_dict(item)
+    raise ValueError(f"Agent session not found: {session_id}")

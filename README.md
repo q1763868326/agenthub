@@ -346,6 +346,8 @@ runtime:
 - Package 安装：`POST /instances`
 - Agent Instance：`GET /instances`
 - Session：`POST /instances/{instance_id}/sessions`
+- Session 总结：`POST /sessions/{session_id}/summarize`
+- Experience：`GET /instances/{instance_id}/experiences`
 - OpenAI Compatible API：`GET /v1/models`、`POST /v1/chat/completions`
 - Open WebUI 接入：通过模型列表选择数字人实例
 
@@ -364,6 +366,13 @@ curl http://localhost:8787/health
 curl http://localhost:8787/packages
 curl http://localhost:8787/instances
 curl http://localhost:8787/v1/models
+```
+
+生成一次 Experience：
+
+```bash
+curl -X POST http://localhost:8787/sessions/{session_id}/summarize
+curl http://localhost:8787/instances/my-zjf-digital-human/experiences
 ```
 
 ## Docker 运行
