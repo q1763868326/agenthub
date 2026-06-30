@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import tempfile
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -75,6 +78,15 @@ def _list_package_files(agent_dir: Path) -> list[str]:
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content.rstrip() + "\n", encoding="utf-8")
+
+
+def _safe_extract(zip_path: Path, target_dir: Path) -> None:
+    with zipfile.ZipFile(zip_path) as archive:
+        for member in archive.infolist():
+            member_path = target_dir / member.filename
+            if not member_path.resolve().is_relative_to(target_dir.resolve()):
+                raise ValueError(f"Unsafe zip entry: {member.filename}")
+        archive.extractall(target_dir)
 
 
 def validate_agent_package(agent_dir: Path, manifest: dict[str, Any] | None = None) -> PackageValidation:
@@ -208,6 +220,62 @@ def create_agent_package(
     if not package.validation.valid:
         raise ValueError("; ".join(package.validation.errors))
     return package
+
+
+def export_agent_package(agent_id: str, output_dir: Path | None = None) -> Path:
+    package = get_agent(agent_id)
+    if not package:
+        raise ValueError(f"Agent package not found: {agent_id}")
+
+    package_dir = Path(package.package_path)
+    output_dir = output_dir or Path(tempfile.mkdtemp(prefix="agentos-export-"))
+    output_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = output_dir / f"{package.id}.agent.zip"
+
+    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for file_path in package_dir.rglob("*"):
+            if file_path.is_file():
+                archive.write(file_path, file_path.relative_to(package_dir).as_posix())
+    return archive_path
+
+
+def import_agent_package(zip_path: Path) -> AgentPackage:
+    with tempfile.TemporaryDirectory(prefix="agentos-import-") as tmp:
+        tmp_dir = Path(tmp)
+        _safe_extract(zip_path, tmp_dir)
+
+        package_root = tmp_dir
+        if not (package_root / "manifest.yaml").exists():
+            children = [child for child in tmp_dir.iterdir() if child.is_dir()]
+            if len(children) == 1 and (children[0] / "manifest.yaml").exists():
+                package_root = children[0]
+
+        manifest = _read_yaml(package_root / "manifest.yaml")
+        agent_id = manifest.get("id")
+        if not isinstance(agent_id, str) or not PACKAGE_ID_PATTERN.fullmatch(agent_id):
+            raise ValueError("Imported package manifest.id is missing or invalid")
+
+        validation = validate_agent_package(package_root, manifest)
+        if not validation.valid:
+            raise ValueError("; ".join(validation.errors))
+
+        target_dir = PACKAGES_DIR / f"{agent_id}.agent"
+        if target_dir.exists():
+            raise ValueError(f"Agent package already exists: {agent_id}")
+
+        shutil.copytree(package_root, target_dir)
+
+    package = load_agent_package(target_dir)
+    if not package:
+        raise ValueError(f"Failed to load imported agent package: {agent_id}")
+    return package
+
+
+def delete_agent_package(agent_id: str) -> None:
+    package = get_agent(agent_id)
+    if not package:
+        raise ValueError(f"Agent package not found: {agent_id}")
+    shutil.rmtree(package.package_path)
 
 
 def package_summary(agent: AgentPackage) -> dict[str, Any]:

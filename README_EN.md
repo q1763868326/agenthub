@@ -341,6 +341,7 @@ The current prototype already has the minimal Phase 1 loop:
 - Package Registry: scans `packages/*.agent`
 - Package validation: checks required manifest fields, runtime, permission types, and required files
 - Package creation: `POST /packages`, with Persona, Prompt, Skills declarations, and MCP declarations
+- Package import/export/delete: `POST /packages/import`, `GET /packages/{package_id}/export`, `DELETE /packages/{package_id}`
 - Package installation: `POST /instances`
 - Agent Instance: `GET /instances`, `PATCH /instances/{instance_id}`
 - Skill installation: `POST /instances/{instance_id}/skills`, downloads a GitHub repository into an Instance
@@ -429,13 +430,29 @@ curl -X POST http://localhost:8787/packages \
   }'
 ```
 
+Export and import `.agent.zip`:
+
+```bash
+curl -L http://localhost:8787/packages/my-agent/export -o my-agent.agent.zip
+
+curl -X POST http://localhost:8787/packages/import \
+  -H "Content-Type: application/zip" \
+  --data-binary "@my-agent.agent.zip"
+```
+
+Delete a Package that is not installed by any Instance:
+
+```bash
+curl -X DELETE http://localhost:8787/packages/my-agent
+```
+
 You can also open the admin console:
 
 ```text
 http://localhost:8787/admin
 ```
 
-The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, package validation results, package installation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
+The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, `.agent` Package import/export/delete, package validation results, package installation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
 
 Manually recompute an Experience:
 

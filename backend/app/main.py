@@ -1,14 +1,24 @@
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
 from pathlib import Path
+import tempfile
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .agent_loader import create_agent_package, get_agent, list_agents, package_detail, package_summary
+from .agent_loader import (
+    create_agent_package,
+    delete_agent_package,
+    export_agent_package,
+    get_agent,
+    import_agent_package,
+    list_agents,
+    package_detail,
+    package_summary,
+)
 from .experience_manager import (
     create_experience_from_session,
     delete_experience,
@@ -129,6 +139,46 @@ def package(package_id: str) -> dict:
     agent = get_agent(package_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent package not found: {package_id}")
+    return package_detail(agent)
+
+
+@app.get("/packages/{package_id}/export")
+def export_package(package_id: str) -> FileResponse:
+    try:
+        archive_path = export_agent_package(package_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return FileResponse(
+        archive_path,
+        media_type="application/zip",
+        filename=archive_path.name,
+    )
+
+
+@app.delete("/packages/{package_id}")
+def delete_package(package_id: str) -> dict:
+    used_by = [instance.id for instance in list_instances() if instance.package_id == package_id]
+    if used_by:
+        raise HTTPException(status_code=409, detail={"message": "Package is installed by instances", "instances": used_by})
+    try:
+        delete_agent_package(package_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"deleted": True, "id": package_id}
+
+
+@app.post("/packages/import")
+async def import_package(body: bytes = Body(..., media_type="application/zip")) -> dict:
+    with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as tmp:
+        tmp.write(body)
+        tmp_path = Path(tmp.name)
+
+    try:
+        agent = import_agent_package(tmp_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        tmp_path.unlink(missing_ok=True)
     return package_detail(agent)
 
 

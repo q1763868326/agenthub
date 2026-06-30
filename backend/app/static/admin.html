@@ -161,6 +161,16 @@
           </div>
         </section>
         <section>
+          <h2>导入 Package</h2>
+          <div class="stack">
+            <label>
+              .agent.zip
+              <input id="import-package-file" type="file" accept=".zip" />
+            </label>
+            <button onclick="importPackage()">导入 Package</button>
+          </div>
+        </section>
+        <section>
           <h2>Packages</h2>
           <div id="packages" class="stack"></div>
         </section>
@@ -283,6 +293,8 @@
             <p class="muted">${escapeHtml(pkg.description || "")}</p>
             <div class="row" style="margin-top: 10px">
               <button onclick="showPackage('${pkg.id}')">详情</button>
+              <button onclick="exportPackage('${pkg.id}')">导出</button>
+              <button class="danger" onclick="deletePackage('${pkg.id}')">删除</button>
               <button class="primary" onclick="installPackage('${pkg.id}')">安装</button>
             </div>
           </article>
@@ -311,6 +323,43 @@
 
       async function installPackage(id) {
         await api("/instances", { method: "POST", body: JSON.stringify({ package_id: id }) });
+        await load();
+      }
+
+      async function deletePackage(id) {
+        if (!confirm(`删除 Package ${id}？已安装的 Package 会被后端拒绝删除。`)) return;
+        try {
+          await api(`/packages/${id}`, { method: "DELETE" });
+        } catch (error) {
+          alert(error.message);
+          return;
+        }
+        await load();
+      }
+
+      function exportPackage(id) {
+        window.location.href = `/packages/${id}/export`;
+      }
+
+      async function importPackage() {
+        const input = document.querySelector("#import-package-file");
+        if (!input.files.length) {
+          alert("请选择 .agent.zip 文件");
+          return;
+        }
+
+        const response = await fetch("/packages/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/zip" },
+          body: input.files[0],
+        });
+        if (!response.ok) {
+          alert(await response.text());
+          return;
+        }
+        const imported = await response.json();
+        document.querySelector("#detail").innerHTML = json(imported);
+        input.value = "";
         await load();
       }
 

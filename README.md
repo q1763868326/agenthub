@@ -345,6 +345,7 @@ runtime:
 - Package Registry：扫描 `packages/*.agent`
 - Package 校验：检查 manifest 必填字段、runtime、权限类型和必需文件
 - Package 创建：`POST /packages`，支持 Persona、Prompt、Skills 声明和 MCP 声明
+- Package 导入/导出/删除：`POST /packages/import`、`GET /packages/{package_id}/export`、`DELETE /packages/{package_id}`
 - Package 安装：`POST /instances`
 - Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`
 - Skill 安装：`POST /instances/{instance_id}/skills`，支持从 GitHub 仓库下载到实例
@@ -433,13 +434,29 @@ curl -X POST http://localhost:8787/packages \
   }'
 ```
 
+导出和导入 `.agent.zip`：
+
+```bash
+curl -L http://localhost:8787/packages/my-agent/export -o my-agent.agent.zip
+
+curl -X POST http://localhost:8787/packages/import \
+  -H "Content-Type: application/zip" \
+  --data-binary "@my-agent.agent.zip"
+```
+
+删除未被安装的 Package：
+
+```bash
+curl -X DELETE http://localhost:8787/packages/my-agent
+```
+
 也可以打开管理台：
 
 ```text
 http://localhost:8787/admin
 ```
 
-管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、查看 Package 校验结果、安装 Package、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
+管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、导入/导出/删除 `.agent` Package、查看 Package 校验结果、安装 Package、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
 
 手动重算一次 Experience：
 
