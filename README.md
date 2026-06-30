@@ -351,7 +351,7 @@ runtime:
 - OpenAI Compatible API：`GET /v1/models`、`POST /v1/chat/completions`
 - Open WebUI 接入：通过模型列表选择数字人实例
 
-默认情况下，使用 Agent Instance 聊天时，AgentOS 会在每轮助手回复后自动更新当前 Session 的 Summary 和 Experience。`POST /sessions/{session_id}/summarize` 主要用于调试或手动重算。
+默认情况下，使用 Agent Instance 聊天时，AgentOS 会记录原始消息，并按阈值自动更新当前 Session 的 Summary 和 Experience。默认策略是每累计 6 条消息触发一次，并跳过过短的用户输入。`POST /sessions/{session_id}/summarize` 主要用于调试或手动重算。
 
 ## 本地运行
 
@@ -402,6 +402,13 @@ OPENAI_API_KEY=agenthub
 
 ```bash
 export WEBUI_AUTH=True
+```
+
+可以通过环境变量调整 Experience 自动刷新策略：
+
+```bash
+export AGENTHUB_AUTO_EXPERIENCE_EVERY_N_MESSAGES=6
+export AGENTHUB_AUTO_EXPERIENCE_MIN_USER_CHARS=8
 ```
 
 ## 接入 Open WebUI

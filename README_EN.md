@@ -347,7 +347,7 @@ The current prototype already has the minimal Phase 1 loop:
 - OpenAI Compatible API: `GET /v1/models`, `POST /v1/chat/completions`
 - Open WebUI integration: select digital human instances from the model list
 
-By default, when chatting with an Agent Instance, AgentOS automatically updates the current Session Summary and Experience after each assistant response. `POST /sessions/{session_id}/summarize` is mainly for debugging or manual recomputation.
+By default, when chatting with an Agent Instance, AgentOS records raw messages and updates the current Session Summary and Experience only when a threshold is reached. The default policy refreshes every 6 messages and skips very short user inputs. `POST /sessions/{session_id}/summarize` is mainly for debugging or manual recomputation.
 
 ## Local Development
 
@@ -398,6 +398,13 @@ OPENAI_API_KEY=agenthub
 
 ```bash
 export WEBUI_AUTH=True
+```
+
+The automatic Experience refresh policy can be adjusted with environment variables:
+
+```bash
+export AGENTHUB_AUTO_EXPERIENCE_EVERY_N_MESSAGES=6
+export AGENTHUB_AUTO_EXPERIENCE_MIN_USER_CHARS=8
 ```
 
 ## Open WebUI Integration

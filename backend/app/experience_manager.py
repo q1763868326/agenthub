@@ -5,7 +5,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from typing import Any
 
-from .config import DATA_DIR
+from .config import AUTO_EXPERIENCE_EVERY_N_MESSAGES, AUTO_EXPERIENCE_MIN_USER_CHARS, DATA_DIR
 from .instance_manager import get_instance
 from .session_manager import AgentSession, get_session, update_session_summary
 from .storage import read_json, write_json
@@ -70,6 +70,31 @@ def build_session_summary(session: AgentSession) -> tuple[str, list[str]]:
         f"本次会话包含 {len(user_messages)} 条用户消息和 {len(assistant_messages)} 条助手消息。",
     ]
     return summary, lessons
+
+
+def should_refresh_experience(session: AgentSession) -> bool:
+    if len(session.messages) < AUTO_EXPERIENCE_EVERY_N_MESSAGES:
+        return False
+    if len(session.messages) % AUTO_EXPERIENCE_EVERY_N_MESSAGES != 0:
+        return False
+
+    latest_user_message = next(
+        (_message_text(message).strip() for message in reversed(session.messages) if message.get("role") == "user"),
+        "",
+    )
+    if len(latest_user_message) < AUTO_EXPERIENCE_MIN_USER_CHARS:
+        return False
+
+    return True
+
+
+def refresh_experience_if_needed(session_id: str) -> AgentExperience | None:
+    session = get_session(session_id)
+    if not session:
+        raise ValueError(f"Agent session not found: {session_id}")
+    if not should_refresh_experience(session):
+        return None
+    return create_experience_from_session(session.id)
 
 
 def create_experience_from_session(session_id: str) -> AgentExperience:
