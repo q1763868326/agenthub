@@ -98,3 +98,11 @@ def update_session_summary(session_id: str, summary: str) -> AgentSession:
             _save_sessions(items)
             return _from_dict(item)
     raise ValueError(f"Agent session not found: {session_id}")
+
+def delete_sessions_for_instance(instance_id: str) -> int:
+    items = _load_sessions()
+    remaining = [item for item in items if item.get("instance_id") != instance_id]
+    deleted_count = len(items) - len(remaining)
+    if deleted_count:
+        _save_sessions(remaining)
+    return deleted_count

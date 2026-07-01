@@ -312,6 +312,7 @@
             <p class="muted">Package: ${escapeHtml(instance.package_id)}</p>
             <div class="row" style="margin-top: 10px">
               <button onclick="selectInstance('${instance.id}')">查看</button>
+              <button class="danger" onclick="deleteInstance('${instance.id}')">卸载</button>
             </div>
           </article>
         `).join("");
@@ -428,6 +429,18 @@
         ]);
         renderSessions(sessions);
         renderExperiences(experiences);
+      }
+
+      async function deleteInstance(id) {
+        if (!confirm(`卸载 Instance ${id}？这会删除它的 Sessions、Experiences 和 Skill 文件。`)) return;
+        await api(`/instances/${id}`, { method: "DELETE" });
+        if (state.selectedInstance?.id === id) {
+          state.selectedInstance = null;
+          document.querySelector("#detail").innerHTML = '<p class="muted">选择一个 Package 或 Instance</p>';
+          document.querySelector("#sessions").innerHTML = "";
+          document.querySelector("#experiences").innerHTML = "";
+        }
+        await load();
       }
 
       async function saveInstance(id) {

@@ -129,6 +129,15 @@ def install_package(package_id: str, name: str | None = None, config: dict[str, 
     _save_instances(items)
     return instance
 
+def delete_instance(instance_id: str) -> AgentInstance:
+    items = _load_instances()
+    for item in items:
+        if item["id"] == instance_id:
+            remaining = [candidate for candidate in items if candidate["id"] != instance_id]
+            _save_instances(remaining)
+            return _from_dict(item)
+    raise ValueError(f"Agent instance not found: {instance_id}")
+
 
 def resolve_agent(model_id: str) -> tuple[AgentPackage, AgentInstance | None] | None:
     instance = get_instance(model_id)

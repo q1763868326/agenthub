@@ -112,6 +112,19 @@ def uninstall_skill(instance_id: str, skill_id: str) -> AgentInstance:
     return update_instance(instance_id=instance_id, installed_skills=skills)
 
 
+def delete_skill_files_for_instance(instance: AgentInstance) -> int:
+    deleted_count = 0
+    for skill in instance.installed_skills:
+        path = skill.get("path")
+        if path:
+            shutil.rmtree(path, ignore_errors=True)
+            deleted_count += 1
+
+    instance_skill_dir = SKILLS_DIR / instance.id
+    shutil.rmtree(instance_skill_dir, ignore_errors=True)
+    return deleted_count
+
+
 def build_skill_prompt(instance: AgentInstance) -> str:
     enabled_skills = [skill for skill in instance.installed_skills if skill.get("enabled", True)]
     if not enabled_skills:

@@ -86,6 +86,14 @@ def delete_experience(experience_id: str) -> None:
         raise ValueError(f"Agent experience not found: {experience_id}")
     _save_experiences(remaining)
 
+def delete_experiences_for_instance(instance_id: str) -> int:
+    items = _load_experiences()
+    remaining = [item for item in items if item.get("instance_id") != instance_id]
+    deleted_count = len(items) - len(remaining)
+    if deleted_count:
+        _save_experiences(remaining)
+    return deleted_count
+
 
 def _message_text(message: dict[str, Any]) -> str:
     content = message.get("content", "")

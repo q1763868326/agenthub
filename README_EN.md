@@ -343,7 +343,7 @@ The current prototype already has the minimal Phase 1 loop:
 - Package creation: `POST /packages`, with Persona, Prompt, Skills declarations, and MCP declarations
 - Package import/export/delete: `POST /packages/import`, `GET /packages/{package_id}/export`, `DELETE /packages/{package_id}`
 - Package installation: `POST /instances`
-- Agent Instance: `GET /instances`, `PATCH /instances/{instance_id}`
+- Agent Instance: `GET /instances`, `PATCH /instances/{instance_id}`, `DELETE /instances/{instance_id}`
 - Skill installation: `POST /instances/{instance_id}/skills`, downloads a GitHub repository into an Instance
 - Skill lifecycle: `PATCH /instances/{instance_id}/skills/{skill_id}`, `DELETE /instances/{instance_id}/skills/{skill_id}`
 - Session: `POST /instances/{instance_id}/sessions`
@@ -372,6 +372,12 @@ Instances can independently edit name, description, config, and MCP bindings:
 curl -X PATCH http://localhost:8787/instances/my-zjf-digital-human \
   -H "Content-Type: application/json" \
   -d '{"name": "My Java Backend Engineer", "config": {"tone": "pragmatic"}, "mcp_bindings": {}}'
+```
+
+Uninstalling an Instance deletes its Sessions, Experiences, and Skill files:
+
+```bash
+curl -X DELETE http://localhost:8787/instances/my-zjf-digital-human
 ```
 
 Install a GitHub Skill into an Instance:
@@ -452,7 +458,7 @@ You can also open the admin console:
 http://localhost:8787/admin
 ```
 
-The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, `.agent` Package import/export/delete, package validation results, package installation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
+The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, `.agent` Package import/export/delete, package validation results, Instance installation/uninstallation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
 
 Manually recompute an Experience:
 

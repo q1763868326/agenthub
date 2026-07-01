@@ -22,14 +22,15 @@ from .agent_loader import (
 from .experience_manager import (
     create_experience_from_session,
     delete_experience,
+    delete_experiences_for_instance,
     get_experience,
     list_experiences,
     update_experience_enabled,
 )
-from .instance_manager import ensure_default_instances, install_package, list_instances, update_instance
+from .instance_manager import delete_instance, ensure_default_instances, install_package, list_instances, update_instance
 from .openai_api import router as openai_router
-from .session_manager import create_session, get_session, list_sessions
-from .skill_manager import install_skill_from_github, uninstall_skill, update_skill_enabled
+from .session_manager import create_session, delete_sessions_for_instance, get_session, list_sessions
+from .skill_manager import delete_skill_files_for_instance, install_skill_from_github, uninstall_skill, update_skill_enabled
 
 
 @asynccontextmanager
@@ -216,6 +217,25 @@ def patch_instance(instance_id: str, req: UpdateInstanceRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return instance.__dict__
+
+
+@app.delete("/instances/{instance_id}")
+def uninstall_instance(instance_id: str) -> dict:
+    try:
+        instance = delete_instance(instance_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    deleted_sessions = delete_sessions_for_instance(instance_id)
+    deleted_experiences = delete_experiences_for_instance(instance_id)
+    deleted_skills = delete_skill_files_for_instance(instance)
+    return {
+        "deleted": True,
+        "id": instance_id,
+        "sessions": deleted_sessions,
+        "experiences": deleted_experiences,
+        "skill_files": deleted_skills,
+    }
 
 
 @app.post("/instances/{instance_id}/skills")

@@ -347,7 +347,7 @@ runtime:
 - Package 创建：`POST /packages`，支持 Persona、Prompt、Skills 声明和 MCP 声明
 - Package 导入/导出/删除：`POST /packages/import`、`GET /packages/{package_id}/export`、`DELETE /packages/{package_id}`
 - Package 安装：`POST /instances`
-- Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`
+- Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`、`DELETE /instances/{instance_id}`
 - Skill 安装：`POST /instances/{instance_id}/skills`，支持从 GitHub 仓库下载到实例
 - Skill 生命周期：`PATCH /instances/{instance_id}/skills/{skill_id}`、`DELETE /instances/{instance_id}/skills/{skill_id}`
 - Session：`POST /instances/{instance_id}/sessions`
@@ -376,6 +376,12 @@ Instance 可以独立编辑名称、描述、配置和 MCP 绑定：
 curl -X PATCH http://localhost:8787/instances/my-zjf-digital-human \
   -H "Content-Type: application/json" \
   -d '{"name": "我的 Java 后端工程师", "config": {"tone": "pragmatic"}, "mcp_bindings": {}}'
+```
+
+卸载 Instance 会删除它的 Session、Experience 和 Skill 文件：
+
+```bash
+curl -X DELETE http://localhost:8787/instances/my-zjf-digital-human
 ```
 
 给 Instance 安装 GitHub Skill：
@@ -456,7 +462,7 @@ curl -X DELETE http://localhost:8787/packages/my-agent
 http://localhost:8787/admin
 ```
 
-管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、导入/导出/删除 `.agent` Package、查看 Package 校验结果、安装 Package、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
+管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、导入/导出/删除 `.agent` Package、查看 Package 校验结果、安装/卸载 Instance、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
 
 手动重算一次 Experience：
 
