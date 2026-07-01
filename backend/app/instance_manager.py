@@ -93,6 +93,38 @@ def update_instance(
             return _from_dict(item)
     raise ValueError(f"Agent instance not found: {instance_id}")
 
+def instance_summary(instance: AgentInstance) -> dict[str, Any]:
+    package = get_agent(instance.package_id)
+    current_package_version = package.version if package else None
+    data = instance.__dict__.copy()
+    data["package_available"] = package is not None
+    data["current_package_version"] = current_package_version
+    data["upgrade_available"] = bool(package and instance.package_version != package.version)
+    return data
+
+def upgrade_instance(instance_id: str, sync_description: bool = False) -> AgentInstance:
+    instance = get_instance(instance_id)
+    if not instance:
+        raise ValueError(f"Agent instance not found: {instance_id}")
+    package = get_agent(instance.package_id)
+    if not package:
+        raise ValueError(f"Agent package not found: {instance.package_id}")
+    if not package.validation.valid:
+        errors = "; ".join(package.validation.errors)
+        raise ValueError(f"Agent package is invalid: {errors}")
+
+    items = _load_instances()
+    now = int(time.time())
+    for item in items:
+        if item["id"] == instance_id:
+            item["package_version"] = package.version
+            if sync_description:
+                item["description"] = package.description
+            item["updated_at"] = now
+            _save_instances(items)
+            return _from_dict(item)
+    raise ValueError(f"Agent instance not found: {instance_id}")
+
 
 def install_package(package_id: str, name: str | None = None, config: dict[str, Any] | None = None) -> AgentInstance:
     package = get_agent(package_id)

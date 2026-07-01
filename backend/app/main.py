@@ -27,7 +27,16 @@ from .experience_manager import (
     list_experiences,
     update_experience_enabled,
 )
-from .instance_manager import delete_instance, ensure_default_instances, install_package, list_instances, update_instance
+from .instance_manager import (
+    delete_instance,
+    ensure_default_instances,
+    get_instance,
+    install_package,
+    instance_summary,
+    list_instances,
+    update_instance,
+    upgrade_instance,
+)
 from .openai_api import router as openai_router
 from .session_manager import create_session, delete_sessions_for_instance, get_session, list_sessions
 from .skill_manager import delete_skill_files_for_instance, install_skill_from_github, uninstall_skill, update_skill_enabled
@@ -85,6 +94,10 @@ class UpdateInstanceRequest(BaseModel):
     description: str | None = None
     config: dict | None = None
     mcp_bindings: dict | None = None
+
+
+class UpgradeInstanceRequest(BaseModel):
+    sync_description: bool = False
 
 
 class InstallSkillRequest(BaseModel):
@@ -196,12 +209,20 @@ def create_instance(req: InstallPackageRequest) -> dict:
         message = str(exc)
         status_code = 400 if "invalid" in message else 404
         raise HTTPException(status_code=status_code, detail=message) from exc
-    return instance.__dict__
+    return instance_summary(instance)
 
 
 @app.get("/instances")
 def instances() -> list[dict]:
-    return [instance.__dict__ for instance in list_instances()]
+    return [instance_summary(instance) for instance in list_instances()]
+
+
+@app.get("/instances/{instance_id}")
+def instance_detail(instance_id: str) -> dict:
+    instance = get_instance(instance_id)
+    if not instance:
+        raise HTTPException(status_code=404, detail=f"Agent instance not found: {instance_id}")
+    return instance_summary(instance)
 
 
 @app.patch("/instances/{instance_id}")
@@ -216,7 +237,18 @@ def patch_instance(instance_id: str, req: UpdateInstanceRequest) -> dict:
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return instance.__dict__
+    return instance_summary(instance)
+
+
+@app.post("/instances/{instance_id}/upgrade")
+def upgrade_instance_route(instance_id: str, req: UpgradeInstanceRequest) -> dict:
+    try:
+        instance = upgrade_instance(instance_id=instance_id, sync_description=req.sync_description)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 400 if "invalid" in message else 404
+        raise HTTPException(status_code=status_code, detail=message) from exc
+    return instance_summary(instance)
 
 
 @app.delete("/instances/{instance_id}")
@@ -246,7 +278,7 @@ def install_skill(instance_id: str, req: InstallSkillRequest) -> dict:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to install skill: {exc}") from exc
-    return instance.__dict__
+    return instance_summary(instance)
 
 
 @app.patch("/instances/{instance_id}/skills/{skill_id}")
@@ -255,7 +287,7 @@ def update_skill(instance_id: str, skill_id: str, req: UpdateSkillRequest) -> di
         instance = update_skill_enabled(instance_id=instance_id, skill_id=skill_id, enabled=req.enabled)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return instance.__dict__
+    return instance_summary(instance)
 
 
 @app.delete("/instances/{instance_id}/skills/{skill_id}")
@@ -264,7 +296,7 @@ def remove_skill(instance_id: str, skill_id: str) -> dict:
         instance = uninstall_skill(instance_id=instance_id, skill_id=skill_id)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return instance.__dict__
+    return instance_summary(instance)
 
 
 @app.post("/instances/{instance_id}/sessions")

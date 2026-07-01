@@ -223,6 +223,11 @@
       function instanceForm(instance) {
         return `
           <div class="stack">
+            <div class="row">
+              <span class="badge">安装版本 ${escapeHtml(instance.package_version)}</span>
+              <span class="badge">当前 Package ${escapeHtml(instance.current_package_version || "missing")}</span>
+              ${instance.upgrade_available ? `<button onclick="upgradeInstance('${instance.id}')">升级到当前版本</button>` : ""}
+            </div>
             <label>
               名称
               <input id="instance-name" value="${escapeHtml(instance.name || "")}" />
@@ -306,12 +311,13 @@
           <article class="item" aria-selected="${state.selectedInstance?.id === instance.id}">
             <div class="row">
               <h3>${escapeHtml(instance.name)}</h3>
-              <span class="badge">${escapeHtml(instance.package_version)}</span>
+              <span class="badge">${instance.upgrade_available ? "可升级" : "已安装 " + escapeHtml(instance.package_version)}</span>
             </div>
             <p class="muted">${escapeHtml(instance.id)}</p>
-            <p class="muted">Package: ${escapeHtml(instance.package_id)}</p>
+            <p class="muted">Package: ${escapeHtml(instance.package_id)} · 当前 ${escapeHtml(instance.current_package_version || "missing")}</p>
             <div class="row" style="margin-top: 10px">
               <button onclick="selectInstance('${instance.id}')">查看</button>
+              ${instance.upgrade_available ? `<button onclick="upgradeInstance('${instance.id}')">升级</button>` : ""}
               <button class="danger" onclick="deleteInstance('${instance.id}')">卸载</button>
             </div>
           </article>
@@ -441,6 +447,17 @@
           document.querySelector("#experiences").innerHTML = "";
         }
         await load();
+      }
+
+      async function upgradeInstance(id) {
+        const updated = await api(`/instances/${id}/upgrade`, {
+          method: "POST",
+          body: JSON.stringify({ sync_description: false }),
+        });
+        state.instances = state.instances.map((item) => (item.id === id ? updated : item));
+        state.selectedInstance = updated;
+        renderInstances();
+        document.querySelector("#detail").innerHTML = instanceForm(updated);
       }
 
       async function saveInstance(id) {
