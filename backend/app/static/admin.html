@@ -197,7 +197,7 @@
       </div>
     </main>
     <script>
-      const state = { packages: [], instances: [], selectedInstance: null };
+      const state = { packages: [], instances: [], skills: [], selectedInstance: null };
 
       async function api(path, options = {}) {
         const response = await fetch(path, {
@@ -244,14 +244,40 @@
               MCP Bindings JSON
               <textarea id="instance-mcp">${escapeHtml(JSON.stringify(instance.mcp_bindings || {}, null, 2))}</textarea>
             </label>
-            <label>
-              GitHub Skill URL
-              <input id="skill-url" placeholder="https://github.com/owner/skill-repo" />
-            </label>
+            <div>
+              <h3>Official Skills</h3>
+              ${state.skills.map((skill) => {
+                const installed = (instance.installed_skills || []).some((item) => item.id === skill.id);
+                return `
+                  <article class="item">
+                    <div class="row">
+                      <h3>${escapeHtml(skill.name || skill.id)}</h3>
+                      <span class="badge">${escapeHtml(skill.category || "official")}</span>
+                    </div>
+                    <p class="muted">${escapeHtml(skill.description || "")}</p>
+                    <div class="row" style="margin-top: 10px">
+                      <span class="muted">${escapeHtml(skill.id)}</span>
+                      <button ${installed ? "disabled" : ""} onclick="installOfficialSkill('${instance.id}', '${skill.id}')">
+                        ${installed ? "已安装" : "安装"}
+                      </button>
+                    </div>
+                  </article>
+                `;
+              }).join("") || '<p class="muted">暂无官方 Skill</p>'}
+            </div>
+            <details>
+              <summary class="muted">开发者安装：GitHub Skill URL</summary>
+              <div class="stack" style="margin-top: 10px">
+                <label>
+                  GitHub Skill URL
+                  <input id="skill-url" placeholder="https://github.com/owner/skill-repo" />
+                </label>
+                <button onclick="installGithubSkill('${instance.id}')">从 GitHub 安装</button>
+              </div>
+            </details>
             <div class="row">
               <span class="muted">${escapeHtml(instance.id)} · ${escapeHtml(instance.package_id)}</span>
               <span>
-                <button onclick="installSkill('${instance.id}')">安装 Skill</button>
                 <button class="primary" onclick="saveInstance('${instance.id}')">保存配置</button>
               </span>
             </div>
@@ -331,9 +357,10 @@
       }
 
       async function load() {
-        const [packages, instances] = await Promise.all([api("/packages"), api("/instances")]);
+        const [packages, instances, skills] = await Promise.all([api("/packages"), api("/instances"), api("/skills")]);
         state.packages = packages;
         state.instances = instances;
+        state.skills = skills;
         renderPackages();
         renderInstances();
         if (state.selectedInstance) await selectInstance(state.selectedInstance.id);
@@ -572,7 +599,18 @@
         document.querySelector("#detail").innerHTML = instanceForm(updated);
       }
 
-      async function installSkill(id) {
+      async function installOfficialSkill(instanceId, skillId) {
+        const updated = await api(`/instances/${instanceId}/skills`, {
+          method: "POST",
+          body: JSON.stringify({ skill_id: skillId }),
+        });
+        state.instances = state.instances.map((item) => (item.id === instanceId ? updated : item));
+        state.selectedInstance = updated;
+        renderInstances();
+        document.querySelector("#detail").innerHTML = instanceForm(updated);
+      }
+
+      async function installGithubSkill(id) {
         const url = document.querySelector("#skill-url").value.trim();
         if (!url) {
           alert("请输入 GitHub Skill URL");

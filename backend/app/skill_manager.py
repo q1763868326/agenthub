@@ -13,6 +13,54 @@ from .instance_manager import AgentInstance, get_instance, update_instance
 
 GITHUB_HOSTS = {"github.com", "www.github.com"}
 
+OFFICIAL_SKILLS: list[dict[str, Any]] = [
+    {
+        "id": "code-review",
+        "name": "代码 Review",
+        "description": "按固定检查清单审查代码，优先发现缺陷、回归风险和缺失测试。",
+        "category": "engineering",
+        "source": "official",
+        "entry": "builtin:code-review",
+        "enabled": True,
+    },
+    {
+        "id": "requirement-analysis",
+        "name": "需求分析",
+        "description": "把模糊想法拆成目标、用户、流程、边界条件和可执行任务。",
+        "category": "product",
+        "source": "official",
+        "entry": "builtin:requirement-analysis",
+        "enabled": True,
+    },
+    {
+        "id": "english-tutor",
+        "name": "英语陪练",
+        "description": "提供词汇、造句、纠错和对话练习，适合学习型数字人。",
+        "category": "education",
+        "source": "official",
+        "entry": "builtin:english-tutor",
+        "enabled": True,
+    },
+    {
+        "id": "writing-polish",
+        "name": "写作润色",
+        "description": "改写、压缩、扩写和调整语气，保持内容意图不变。",
+        "category": "writing",
+        "source": "official",
+        "entry": "builtin:writing-polish",
+        "enabled": True,
+    },
+    {
+        "id": "meeting-summary",
+        "name": "会议总结",
+        "description": "从讨论内容中提炼结论、待办、负责人、风险和后续问题。",
+        "category": "productivity",
+        "source": "official",
+        "entry": "builtin:meeting-summary",
+        "enabled": True,
+    },
+]
+
 
 def _slug(value: str) -> str:
     text = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip().lower())
@@ -49,6 +97,22 @@ def _read_skill_metadata(path: Path, fallback_id: str, source_url: str) -> dict[
         "enabled": True,
     }
 
+def list_official_skills() -> list[dict[str, Any]]:
+    return [dict(skill) for skill in OFFICIAL_SKILLS]
+
+def install_official_skill(instance_id: str, skill_id: str) -> AgentInstance:
+    instance = get_instance(instance_id)
+    if not instance:
+        raise ValueError(f"Agent instance not found: {instance_id}")
+
+    metadata = next((dict(skill) for skill in OFFICIAL_SKILLS if skill["id"] == skill_id), None)
+    if not metadata:
+        raise ValueError(f"Official skill not found: {skill_id}")
+
+    skills = [skill for skill in instance.installed_skills if skill.get("id") != metadata["id"]]
+    skills.append(metadata)
+    return update_instance(instance_id=instance_id, installed_skills=skills)
+
 
 def install_skill_from_github(instance_id: str, url: str) -> AgentInstance:
     instance = get_instance(instance_id)
@@ -62,13 +126,21 @@ def install_skill_from_github(instance_id: str, url: str) -> AgentInstance:
     if target_dir.exists():
         shutil.rmtree(target_dir)
 
-    subprocess.run(
-        ["git", "clone", "--depth", "1", url, str(target_dir)],
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+    try:
+        subprocess.run(
+            ["git", "clone", "--depth", "1", url, str(target_dir)],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except FileNotFoundError as exc:
+        raise ValueError("Git is not installed in the AgentOS runtime. Rebuild the backend image before installing GitHub skills.") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError("GitHub skill clone timed out") from exc
+    except subprocess.CalledProcessError as exc:
+        message = (exc.stderr or exc.stdout or "").strip()
+        raise ValueError(f"GitHub skill clone failed: {message or exc}") from exc
 
     metadata = _read_skill_metadata(target_dir, fallback_id=skill_id, source_url=url)
     skills = [skill for skill in instance.installed_skills if skill.get("id") != metadata["id"]]

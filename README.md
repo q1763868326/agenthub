@@ -349,7 +349,8 @@ runtime:
 - Package 导入/导出/删除：`POST /packages/import`、`GET /packages/{package_id}/export`、`DELETE /packages/{package_id}`
 - Package 安装：`POST /instances`
 - Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`、`POST /instances/{instance_id}/upgrade`、`DELETE /instances/{instance_id}`
-- Skill 安装：`POST /instances/{instance_id}/skills`，支持从 GitHub 仓库下载到实例
+- Skill Registry：`GET /skills`，返回平台内置官方 Skill
+- Skill 安装：`POST /instances/{instance_id}/skills`，普通用户传 `skill_id` 从官方 Skill 安装；开发者可传 `url` 从 GitHub 仓库安装
 - Skill 生命周期：`PATCH /instances/{instance_id}/skills/{skill_id}`、`DELETE /instances/{instance_id}/skills/{skill_id}`
 - Session：`POST /instances/{instance_id}/sessions`
 - Session 总结：`POST /sessions/{session_id}/summarize`
@@ -360,6 +361,8 @@ runtime:
 - AgentOS Admin：`GET /admin`
 
 默认情况下，使用 Agent Instance 聊天时，AgentOS 会记录原始消息，并按阈值自动更新当前 Session 的 Summary 和 Experience。默认策略是每累计 6 条消息触发一次，并跳过过短的用户输入。`POST /sessions/{session_id}/summarize` 主要用于调试或手动重算。
+
+Skill 当前采用产品化主流程：平台先维护官方 Skill Registry，用户在 Admin 页面选择一个 Instance 后，从官方 Skill 列表一键安装。GitHub URL 安装保留为开发者入口，用于后续第三方 Skill 开发、审核和发布流程。当前版本会把已启用 Skill 作为能力声明注入数字人的 system prompt，但还不会直接执行外部代码；真正的 Skill Runtime、权限和沙箱属于后续阶段。
 
 Experience 默认启用，会被注入到后续对话的 system prompt。可以禁用或删除不想继续影响数字人的经验：
 

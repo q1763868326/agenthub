@@ -40,7 +40,14 @@ from .instance_manager import (
 )
 from .openai_api import router as openai_router
 from .session_manager import create_session, delete_sessions_for_instance, get_session, list_sessions
-from .skill_manager import delete_skill_files_for_instance, install_skill_from_github, uninstall_skill, update_skill_enabled
+from .skill_manager import (
+    delete_skill_files_for_instance,
+    install_official_skill,
+    install_skill_from_github,
+    list_official_skills,
+    uninstall_skill,
+    update_skill_enabled,
+)
 
 
 @asynccontextmanager
@@ -116,7 +123,8 @@ class UpgradeInstanceRequest(BaseModel):
 
 
 class InstallSkillRequest(BaseModel):
-    url: str
+    skill_id: str | None = None
+    url: str | None = None
 
 
 class UpdateSkillRequest(BaseModel):
@@ -237,6 +245,10 @@ async def import_package(body: bytes = Body(..., media_type="application/zip")) 
 def agents() -> list[dict]:
     return packages()
 
+@app.get("/skills")
+def skills() -> list[dict]:
+    return list_official_skills()
+
 
 @app.post("/instances")
 def create_instance(req: InstallPackageRequest) -> dict:
@@ -310,7 +322,12 @@ def uninstall_instance(instance_id: str) -> dict:
 @app.post("/instances/{instance_id}/skills")
 def install_skill(instance_id: str, req: InstallSkillRequest) -> dict:
     try:
-        instance = install_skill_from_github(instance_id=instance_id, url=req.url)
+        if req.skill_id:
+            instance = install_official_skill(instance_id=instance_id, skill_id=req.skill_id)
+        elif req.url:
+            instance = install_skill_from_github(instance_id=instance_id, url=req.url)
+        else:
+            raise ValueError("skill_id or url is required")
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
