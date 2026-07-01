@@ -222,6 +222,61 @@ def create_agent_package(
     return package
 
 
+def update_agent_package(
+    agent_id: str,
+    name: str | None = None,
+    version: str | None = None,
+    description: str | None = None,
+    author: str | None = None,
+    persona: str | None = None,
+    prompt: str | None = None,
+    tags: list[str] | None = None,
+    permissions: list[str] | None = None,
+    skills: list[dict[str, Any]] | None = None,
+    runtime: dict[str, Any] | None = None,
+    mcp: dict[str, Any] | None = None,
+) -> AgentPackage:
+    package = get_agent(agent_id)
+    if not package:
+        raise ValueError(f"Agent package not found: {agent_id}")
+
+    agent_dir = Path(package.package_path)
+    manifest = dict(package.raw_manifest)
+    if name is not None:
+        manifest["name"] = name
+    if version is not None:
+        manifest["version"] = version
+    if description is not None:
+        manifest["description"] = description
+    if author is not None:
+        manifest["author"] = author
+    if tags is not None:
+        manifest["tags"] = tags
+    if permissions is not None:
+        manifest["permissions"] = permissions
+    if skills is not None:
+        manifest["skills"] = skills
+    if runtime is not None:
+        manifest["runtime"] = runtime
+
+    validation = validate_agent_package(agent_dir, manifest)
+    if not validation.valid:
+        raise ValueError("; ".join(validation.errors))
+
+    _write_text(agent_dir / "manifest.yaml", yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False))
+    if persona is not None:
+        _write_text(agent_dir / "persona.md", persona)
+    if prompt is not None:
+        _write_text(agent_dir / "prompt.md", prompt)
+    if mcp is not None:
+        _write_text(agent_dir / "mcp.json", json.dumps(mcp, ensure_ascii=False, indent=2))
+
+    updated = load_agent_package(agent_dir)
+    if not updated:
+        raise ValueError(f"Failed to load updated agent package: {agent_id}")
+    return updated
+
+
 def export_agent_package(agent_id: str, output_dir: Path | None = None) -> Path:
     package = get_agent(agent_id)
     if not package:

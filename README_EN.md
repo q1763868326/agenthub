@@ -341,6 +341,7 @@ The current prototype already has the minimal Phase 1 loop:
 - Package Registry: scans `packages/*.agent`
 - Package validation: checks required manifest fields, runtime, permission types, and required files
 - Package creation: `POST /packages`, with Persona, Prompt, Skills declarations, and MCP declarations
+- Package editing: `PATCH /packages/{package_id}`, updates version, Persona, Prompt, and Skills/MCP declarations
 - Package import/export/delete: `POST /packages/import`, `GET /packages/{package_id}/export`, `DELETE /packages/{package_id}`
 - Package installation: `POST /instances`
 - Agent Instance: `GET /instances`, `PATCH /instances/{instance_id}`, `POST /instances/{instance_id}/upgrade`, `DELETE /instances/{instance_id}`
@@ -444,6 +445,16 @@ curl -X POST http://localhost:8787/packages \
   }'
 ```
 
+Edit a Package and publish a new version:
+
+```bash
+curl -X PATCH http://localhost:8787/packages/my-agent \
+  -H "Content-Type: application/json" \
+  -d '{"version": "0.2.0", "prompt": "Answer more concretely."}'
+```
+
+After the Package version changes, installed Instances on older versions expose `upgrade_available: true`.
+
 Export and import `.agent.zip`:
 
 ```bash
@@ -466,7 +477,7 @@ You can also open the admin console:
 http://localhost:8787/admin
 ```
 
-The admin console supports digital human Package creation, Persona/Prompt/Skills/MCP declarations, `.agent` Package import/export/delete, package validation results, Instance installation, upgrade, and uninstallation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
+The admin console supports digital human Package creation/editing, Persona/Prompt/Skills/MCP declarations, `.agent` Package import/export/delete, package validation results, Instance installation, upgrade, and uninstallation, instance config editing, GitHub Skill installation, enabling, disabling, and uninstalling Skills, sessions, and enabling, disabling, or deleting Experiences.
 
 Manually recompute an Experience:
 

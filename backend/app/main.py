@@ -18,6 +18,7 @@ from .agent_loader import (
     list_agents,
     package_detail,
     package_summary,
+    update_agent_package,
 )
 from .experience_manager import (
     create_experience_from_session,
@@ -83,6 +84,20 @@ class CreatePackageRequest(BaseModel):
     skills: list[dict] = Field(default_factory=list)
     runtime: dict = Field(default_factory=lambda: {"type": "openai-compatible"})
     mcp: dict = Field(default_factory=lambda: {"servers": []})
+
+
+class UpdatePackageRequest(BaseModel):
+    name: str | None = None
+    version: str | None = None
+    description: str | None = None
+    author: str | None = None
+    persona: str | None = None
+    prompt: str | None = None
+    tags: list[str] | None = None
+    permissions: list[str] | None = None
+    skills: list[dict] | None = None
+    runtime: dict | None = None
+    mcp: dict | None = None
 
 
 class CreateSessionRequest(BaseModel):
@@ -153,6 +168,28 @@ def package(package_id: str) -> dict:
     agent = get_agent(package_id)
     if not agent:
         raise HTTPException(status_code=404, detail=f"Agent package not found: {package_id}")
+    return package_detail(agent)
+
+
+@app.patch("/packages/{package_id}")
+def update_package(package_id: str, req: UpdatePackageRequest) -> dict:
+    try:
+        agent = update_agent_package(
+            agent_id=package_id,
+            name=req.name,
+            version=req.version,
+            description=req.description,
+            author=req.author,
+            persona=req.persona,
+            prompt=req.prompt,
+            tags=req.tags,
+            permissions=req.permissions,
+            skills=req.skills,
+            runtime=req.runtime,
+            mcp=req.mcp,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return package_detail(agent)
 
 

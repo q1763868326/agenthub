@@ -278,6 +278,58 @@
         `;
       }
 
+      function packageForm(pkg) {
+        return `
+          <div class="stack">
+            <div class="row">
+              <span class="badge">${pkg.valid ? "valid" : "invalid"}</span>
+              <span class="muted">${escapeHtml(pkg.id)}</span>
+            </div>
+            <label>
+              名称
+              <input id="package-name" value="${escapeHtml(pkg.name || "")}" />
+            </label>
+            <label>
+              版本
+              <input id="package-version" value="${escapeHtml(pkg.version || "0.1.0")}" />
+            </label>
+            <label>
+              描述
+              <textarea id="package-description">${escapeHtml(pkg.description || "")}</textarea>
+            </label>
+            <label>
+              作者
+              <input id="package-author" value="${escapeHtml(pkg.author || "")}" />
+            </label>
+            <label>
+              Tags
+              <input id="package-tags" value="${escapeHtml((pkg.tags || []).join(", "))}" />
+            </label>
+            <label>
+              Skills JSON
+              <textarea id="package-skills">${escapeHtml(JSON.stringify(pkg.skills || [], null, 2))}</textarea>
+            </label>
+            <label>
+              MCP JSON
+              <textarea id="package-mcp">${escapeHtml(JSON.stringify(pkg.mcp || { servers: [] }, null, 2))}</textarea>
+            </label>
+            <label>
+              Persona
+              <textarea id="package-persona">${escapeHtml(pkg.persona || "")}</textarea>
+            </label>
+            <label>
+              Prompt
+              <textarea id="package-prompt">${escapeHtml(pkg.prompt || "")}</textarea>
+            </label>
+            <div class="row">
+              <span class="muted">保存后，已安装旧版本的 Instance 会显示可升级。</span>
+              <button class="primary" onclick="savePackage('${pkg.id}')">保存 Package</button>
+            </div>
+            ${json(pkg)}
+          </div>
+        `;
+      }
+
       async function load() {
         const [packages, instances] = await Promise.all([api("/packages"), api("/instances")]);
         state.packages = packages;
@@ -325,7 +377,41 @@
       }
 
       async function showPackage(id) {
-        document.querySelector("#detail").innerHTML = json(await api(`/packages/${id}`));
+        document.querySelector("#detail").innerHTML = packageForm(await api(`/packages/${id}`));
+      }
+
+      async function savePackage(id) {
+        let skills;
+        let mcp;
+        try {
+          skills = JSON.parse(document.querySelector("#package-skills").value || "[]");
+          mcp = JSON.parse(document.querySelector("#package-mcp").value || '{"servers": []}');
+          if (!Array.isArray(skills)) throw new Error("Skills JSON 必须是数组");
+        } catch (error) {
+          alert(`Package JSON 格式错误：${error.message}`);
+          return;
+        }
+
+        const tags = document.querySelector("#package-tags").value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        const updated = await api(`/packages/${id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            name: document.querySelector("#package-name").value,
+            version: document.querySelector("#package-version").value,
+            description: document.querySelector("#package-description").value,
+            author: document.querySelector("#package-author").value,
+            tags,
+            skills,
+            mcp,
+            persona: document.querySelector("#package-persona").value,
+            prompt: document.querySelector("#package-prompt").value,
+          }),
+        });
+        document.querySelector("#detail").innerHTML = packageForm(updated);
+        await load();
       }
 
       async function installPackage(id) {

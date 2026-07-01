@@ -345,6 +345,7 @@ runtime:
 - Package Registry：扫描 `packages/*.agent`
 - Package 校验：检查 manifest 必填字段、runtime、权限类型和必需文件
 - Package 创建：`POST /packages`，支持 Persona、Prompt、Skills 声明和 MCP 声明
+- Package 编辑：`PATCH /packages/{package_id}`，支持更新版本、Persona、Prompt、Skills/MCP 声明
 - Package 导入/导出/删除：`POST /packages/import`、`GET /packages/{package_id}/export`、`DELETE /packages/{package_id}`
 - Package 安装：`POST /instances`
 - Agent Instance：`GET /instances`、`PATCH /instances/{instance_id}`、`POST /instances/{instance_id}/upgrade`、`DELETE /instances/{instance_id}`
@@ -448,6 +449,16 @@ curl -X POST http://localhost:8787/packages \
   }'
 ```
 
+编辑 Package 并发布新版本：
+
+```bash
+curl -X PATCH http://localhost:8787/packages/my-agent \
+  -H "Content-Type: application/json" \
+  -d '{"version": "0.2.0", "prompt": "使用中文，回答更具体。"}'
+```
+
+Package 版本更新后，已安装旧版本的 Instance 会显示 `upgrade_available: true`。
+
 导出和导入 `.agent.zip`：
 
 ```bash
@@ -470,7 +481,7 @@ curl -X DELETE http://localhost:8787/packages/my-agent
 http://localhost:8787/admin
 ```
 
-管理台支持创建数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、导入/导出/删除 `.agent` Package、查看 Package 校验结果、安装/升级/卸载 Instance、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
+管理台支持创建/编辑数字人 Package、填写 Persona/Prompt/Skills/MCP 声明、导入/导出/删除 `.agent` Package、查看 Package 校验结果、安装/升级/卸载 Instance、编辑 Instance 配置、从 GitHub 安装/启用/禁用/卸载 Skill、查看 Session、启用/禁用/删除 Experience。
 
 手动重算一次 Experience：
 
